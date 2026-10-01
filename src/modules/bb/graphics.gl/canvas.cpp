@@ -100,6 +100,7 @@ GLCanvas::GLCanvas( ContextResources *res,int w,int h,int f ):res(res),pixmap(0)
 	flags=f;
 	color[0]=color[1]=color[2]=1.0f;
 	cls_argb=0xff000000;
+	pixmap_locked=pixmap_dirty=false;
 
 	setOrigin( 0,0 );
 	setHandle( 0,0 );
@@ -137,6 +138,7 @@ void GLCanvas::setFont( BBFont *f ){
 
 void GLCanvas::setMask( unsigned argb ){
 	mask=argb;
+	if( argb&0xffffff ) flags|=CANVAS_TEX_MASK;
 	dirty=true;
 }
 
@@ -470,6 +472,12 @@ bool GLCanvas::rect_collide( int x,int y,int rect_x,int rect_y,int rect_w,int re
 }
 
 bool GLCanvas::lock(){
+	if( pixmap ){
+		// image data already lives in the pixmap (RGBA, bottom row first)
+		if( pixmap_locked ) return false;
+		pixmap_locked=true;
+		return true;
+	}
 	if( pixels ) return false;
 
 	pixels=new unsigned char[width*height*4];
@@ -487,12 +495,27 @@ void GLCanvas::setPixel( int x,int y,unsigned argb ){
 
 #define UC(c) static_cast<unsigned char>(c)
 
-// While locked, `pixels` holds the framebuffer as read by glReadPixels:
-// BGRA bytes, bottom row first.
+// While locked, `pixels` holds the canvas as read by glReadPixels: BGRA bytes.
+// Window framebuffers come back bottom row first. Texture-backed canvases come
+// back in texture memory order, which matches loaded images (top row first).
+// Pixmap-backed images (loaded from files) are also top row first, RGBA.
+int GLCanvas::pixelRow( int y )const{
+	return (framebuffer==0 && (mode==GL_FRONT || mode==GL_BACK)) ? height-1-y : y;
+}
+
 void GLCanvas::setPixelFast( int x,int y,unsigned argb ){
-	if( !pixels || x<0 || y<0 || x>=width || y>=height ) return;
-	unsigned char *p=pixels+((size_t)(height-1-y)*width+x)*4;
-	p[0]=argb&255;p[1]=(argb>>8)&255;p[2]=(argb>>16)&255;p[3]=(argb>>24)&255;
+	if( x<0 || y<0 || x>=width || y>=height ) return;
+	if( pixmap ){
+		unsigned char *p=pixmap->bits+((size_t)y*width+x)*pixmap->bpp;
+		p[0]=(argb>>16)&255;p[1]=(argb>>8)&255;p[2]=argb&255;
+		// like Blitz, writing a pixel never changes transparency (that is the mask's job)
+		if( pixmap->bpp>3 ) p[3]=255;
+		pixmap_dirty=true;
+		return;
+	}
+	if( !pixels ) return;
+	unsigned char *p=pixels+((size_t)pixelRow( y )*width+x)*4;
+	p[0]=argb&255;p[1]=(argb>>8)&255;p[2]=(argb>>16)&255;p[3]=255;
 }
 
 void GLCanvas::copyPixel( int x,int y,BBCanvas *src,int src_x,int src_y ){
@@ -511,12 +534,27 @@ unsigned GLCanvas::getPixel( int x,int y ){
 }
 
 unsigned GLCanvas::getPixelFast( int x,int y ){
-	if( !pixels || x<0 || y<0 || x>=width || y>=height ) return 0;
-	const unsigned char *p=pixels+((size_t)(height-1-y)*width+x)*4;
+	if( x<0 || y<0 || x>=width || y>=height ) return 0;
+	if( pixmap ){
+		const unsigned char *p=pixmap->bits+((size_t)y*width+x)*pixmap->bpp;
+		unsigned a=pixmap->bpp>3 ? p[3] : 255;
+		return (a<<24)|(p[0]<<16)|(p[1]<<8)|p[2];
+	}
+	if( !pixels ) return 0;
+	const unsigned char *p=pixels+((size_t)pixelRow( y )*width+x)*4;
 	return (p[3]<<24)|(p[2]<<16)|(p[1]<<8)|p[0];
 }
 
 void GLCanvas::unlock(){
+	if( pixmap ){
+		if( !pixmap_locked ) return;
+		pixmap_locked=false;
+		if( pixmap_dirty ){
+			uploadData();
+			pixmap_dirty=false;
+		}
+		return;
+	}
 	if( !pixels ) return;
 
 	// RTEX( "GLCanvas::unlock not implemented" );
@@ -628,6 +666,14 @@ void GLCanvas::uploadData(){
 
 	// TODO: not super happy with this...
 	if( pixels ){
+		if( flags&CANVAS_TEX_MASK ){
+			// locked pixels are BGRA
+			int mr=(mask>>16)&255,mg=(mask>>8)&255,mb=mask&255;
+			for( int i=0;i<width*height;i++ ){
+				unsigned char *p=&pixels[4*i];
+				if( p[2]==mr && p[1]==mg && p[0]==mb ) p[3]=0;
+			}
+		}
 		data=pixels;
 	} else if( pixmap ){
 		pm=d_new BBPixmap;
@@ -638,7 +684,12 @@ void GLCanvas::uploadData(){
 		memcpy( pm->bits,pixmap->bits,size );
 
 		if( flags&CANVAS_TEX_MASK ){
-			pm->mask( (mask>>16)&255,(mask>>8)&255,mask&255 );
+			// pixmap bits are RGBA here (BBPixmap::mask assumes BGRA)
+			int mr=(mask>>16)&255,mg=(mask>>8)&255,mb=mask&255;
+			for( int i=0;i<pm->width*pm->height;i++ ){
+				unsigned char *p=&pm->bits[pm->bpp*i];
+				if( pm->bpp>3 && p[0]==mr && p[1]==mg && p[2]==mb ) p[3]=0;
+			}
 		}
 
 		data=pm->bits;
@@ -692,8 +743,13 @@ void GLCanvas::downloadData(){
 
 	void *bits=pixmap?pixmap->bits:pixels;
 	if( bits ){
-		GL( glBindFramebuffer( GL_FRAMEBUFFER,framebufferId() ) );
+		// framebufferId() may bind or create a framebuffer: leave the caller's binding alone
+		GLint prev=0;
+		GL( glGetIntegerv( GL_FRAMEBUFFER_BINDING,&prev ) );
+		unsigned fb=framebufferId();
+		GL( glBindFramebuffer( GL_FRAMEBUFFER,fb ) );
 		GL( glReadPixels( 0,0,width,height,GL_BGRA,GL_UNSIGNED_BYTE,bits  ) );
+		GL( glBindFramebuffer( GL_FRAMEBUFFER,prev ) );
 	}
 }
 

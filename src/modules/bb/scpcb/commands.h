@@ -26,6 +26,9 @@ bb_int_t BBCALL bbFSOUND_Stream_Open( BBStr *filename,bb_int_t mode,bb_int_t mem
 bb_int_t BBCALL bbFSOUND_IsPlaying( bb_int_t channel );
 bb_int_t BBCALL bbFSOUND_SetPan( bb_int_t channel,bb_int_t pan );
 
+// debug aid (not part of the original game)
+void BBCALL bbRT_Trace( BBStr *msg );
+
 // cpuid.dll
 BBStr * BBCALL bbCPUid(  );
 BBStr * BBCALL bbCPUextendedId(  );

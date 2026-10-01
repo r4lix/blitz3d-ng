@@ -18,6 +18,7 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "%FSOUND_Stream_Open$filename%mode%memlength","bbFSOUND_Stream_Open",bbFSOUND_Stream_Open );
 	rtSym( "%FSOUND_IsPlaying%channel","bbFSOUND_IsPlaying",bbFSOUND_IsPlaying );
 	rtSym( "%FSOUND_SetPan%channel%pan","bbFSOUND_SetPan",bbFSOUND_SetPan );
+	rtSym( "RT_Trace$msg","bbRT_Trace",bbRT_Trace );
 	rtSym( "$CPUid","bbCPUid",bbCPUid );
 	rtSym( "$CPUextendedId","bbCPUextendedId",bbCPUextendedId );
 	rtSym( "$CPUbrand","bbCPUbrand",bbCPUbrand );

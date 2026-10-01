@@ -93,6 +93,12 @@ bb_int_t BBCALL bbFSOUND_SetPan( bb_int_t chan,bb_int_t pan ){
 	return 1;
 }
 
+void BBCALL bbRT_Trace( BBStr *msg ){
+	fprintf( stderr,"[t] %s\n",msg->c_str() );
+	fflush( stderr );
+	delete msg;
+}
+
 // ---------------------------------------------------------------------------
 // cpuid.dll: only shown on the debug CPU screen
 // ---------------------------------------------------------------------------

@@ -23,6 +23,9 @@ protected:
 	int mask;
 	float color[3];
 	unsigned cls_argb;
+	bool pixmap_locked,pixmap_dirty;
+
+	int pixelRow( int y )const;
 	BBPixmap *pixmap;
 	bool dirty;
 

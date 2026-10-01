@@ -1,3 +1,8 @@
+#include <vector>
+#include <string>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include "../stdutil/stdutil.h"
 #include "runtime.sdl.h"
 #include <bb/pixmap/pixmap.h>
@@ -103,8 +108,57 @@ void SDLRuntime::asyncRun(){
 void SDLRuntime::asyncEnd(){
 }
 
+// Debug aid: BB_INJECT="3000:key:44;6000:move:640,400;6200:click:1" pushes
+// synthetic SDL events when the given number of milliseconds have elapsed.
+// key:<SDL scancode> sends a press and release, click:<1|2|3> a button press.
+static void injectEvents(){
+	struct Item{ Uint32 at;std::string kind;int a,b;bool done; };
+	static std::vector<Item> items;
+	static bool parsed=false;
+	if( !parsed ){
+		parsed=true;
+		if( const char *env=getenv( "BB_INJECT" ) ){
+			std::string all=env;
+			size_t pos=0;
+			while( pos<all.size() ){
+				size_t end=all.find( ';',pos );
+				if( end==std::string::npos ) end=all.size();
+				std::string t=all.substr( pos,end-pos );
+				pos=end+1;
+				int at=0,a=0,b=0;
+				char kind[16]={0};
+				if( sscanf( t.c_str(),"%d:%15[a-z]:%d,%d",&at,kind,&a,&b )>=3 ){
+					items.push_back( Item{ (Uint32)at,kind,a,b,false } );
+				}
+			}
+		}
+	}
+	Uint32 now=SDL_GetTicks();
+	for( Item &i:items ){
+		if( i.done || now<i.at ) continue;
+		i.done=true;
+		SDL_Event e;
+		memset( &e,0,sizeof(e) );
+		if( i.kind=="key" ){
+			e.type=SDL_KEYDOWN;e.key.keysym.scancode=(SDL_Scancode)i.a;e.key.state=SDL_PRESSED;
+			SDL_PushEvent( &e );
+			e.type=SDL_KEYUP;e.key.state=SDL_RELEASED;
+			SDL_PushEvent( &e );
+		}else if( i.kind=="move" ){
+			e.type=SDL_MOUSEMOTION;e.motion.x=i.a;e.motion.y=i.b;
+			SDL_PushEvent( &e );
+		}else if( i.kind=="click" ){
+			e.type=SDL_MOUSEBUTTONDOWN;e.button.button=i.a==2?SDL_BUTTON_RIGHT:i.a==3?SDL_BUTTON_MIDDLE:SDL_BUTTON_LEFT;e.button.state=SDL_PRESSED;
+			SDL_PushEvent( &e );
+			e.type=SDL_MOUSEBUTTONUP;e.button.state=SDL_RELEASED;
+			SDL_PushEvent( &e );
+		}
+	}
+}
+
 bool SDLRuntime::idle(){
 	SDL_Event event;
+	injectEvents();
 	while( SDL_PollEvent(&event) ){
 		if( event.type == SDL_QUIT ){
 			RTEX( 0 );

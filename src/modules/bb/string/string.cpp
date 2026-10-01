@@ -47,25 +47,25 @@ BBStr * BBCALL bbReplace( BBStr *s,BBStr *from,BBStr *to ){
 
 bb_int_t BBCALL bbInstr( BBStr *s,BBStr *t,bb_int_t from ){
 	CHKOFF( from );
-	utf8_int32_t chr;
-	const char *l=s->c_str(),*r=s->c_str()+s->size()-1;
-	const char *o=l;
-	while( --from>0&&o<=r ) o=utf8codepoint( o,&chr );
+	// `from` and the result count UTF-8 code points, not bytes. Games call this in
+	// tight loops, so walk raw bytes (continuation bytes are 10xxxxxx) and let
+	// std::string do the searching.
+	const unsigned char *p=(const unsigned char*)s->data();
+	const size_t size=s->size();
+	size_t pos=0;
+	for( bb_int_t steps=from-1;steps>0&&pos<size;--steps ){
+		++pos;
+		while( pos<size&&(p[pos]&0xC0)==0x80 ) ++pos;
+	}
 
-	utf8_int8_t *m=utf8str( o,t->c_str() );
-	size_t n;
-	if( m ){
-		n=0;
-		const char *c=l;
-		while( c<m ){
-			c=utf8codepoint( c,&chr );
-			++n;
-		}
-	}else{
-		n=-1;
+	size_t found=pos>size ? std::string::npos : s->find( *t,pos );
+	bb_int_t n=0;
+	if( found!=std::string::npos ){
+		for( size_t i=0;i<found;++i ) if( (p[i]&0xC0)!=0x80 ) ++n;
+		++n;
 	}
 	delete s;delete t;
-	return n==-1 ? 0 : n+1;
+	return n;
 }
 
 BBStr * BBCALL bbMid( BBStr *s,bb_int_t o,bb_int_t n ){

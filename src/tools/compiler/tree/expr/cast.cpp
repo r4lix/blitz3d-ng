@@ -1,4 +1,7 @@
 #include "cast.h"
+#ifdef USE_LLVM
+#include <llvm/IR/Intrinsics.h>
+#endif
 #include "int_const.h"
 #include "float_const.h"
 #include "string_const.h"
@@ -62,7 +65,14 @@ llvm::Value *CastNode::translate2( Codegen_LLVM *g ){
 	llvm::Value *t=expr->translate2( g );
 	if( expr->sem_type==Type::float_type && sem_type==Type::int_type ){
 		//float->int
-		return g->builder->CreateFPToSI( t,g->intTy );
+		// Blitz rounds to nearest (x86 fistp), it does not truncate, and the original
+		// result for NaN/overflow is the "integer indefinite" value INT_MIN. Plain fptosi
+		// is undefined for those, which lets LLVM delete code paths (e.g. `Int(0.0/0.0)`).
+		llvm::Function *lrint=llvm::Intrinsic::getDeclaration( g->module.get(),llvm::Intrinsic::lrint,{ g->intTy,t->getType() } );
+		llvm::Value *r=g->builder->CreateCall( lrint,{ t } );
+		llvm::Value *bad=g->builder->CreateFCmpUNO( t,t );
+		llvm::Value *indefinite=llvm::ConstantInt::get( g->intTy,(uint64_t)1<<(g->intTy->getIntegerBitWidth()-1) );
+		return g->builder->CreateSelect( bad,indefinite,r );
 	}
 	if( expr->sem_type==Type::int_type && sem_type==Type::float_type ){
 		//int->float

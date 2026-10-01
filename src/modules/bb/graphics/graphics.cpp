@@ -12,6 +12,7 @@
 
 
 #include <fstream>
+#include <chrono>
 #include <vector>
 #include <set>
 
@@ -451,10 +452,108 @@ static bool saveCanvas( BBCanvas *c,const std::string &f );
 
 // Debug aid: BB_SCREENSHOT_FRAMES="30,300" BB_SCREENSHOT_PATH="shot" writes
 // shot_<frame>.bmp from the current buffer just before those frames are shown.
+#ifdef WIN32
+#include <thread>
+#include <atomic>
+#include <dbghelp.h>
+#pragma comment(lib,"dbghelp.lib")
+
+// Debug aid: BB_WATCHDOG_SECS=20 prints the main thread's stack when no frame
+// has been presented for that long (finds where a hung game is stuck).
+static std::atomic<long long> wd_last_flip( 0 );
+static HANDLE wd_main_thread=0;
+
+static long long wdNow(){
+	return std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now().time_since_epoch() ).count();
+}
+
+static void wdPrintStack( HANDLE thread,CONTEXT ctx,const char *title ){
+	HANDLE proc=GetCurrentProcess();
+	SymSetOptions( SYMOPT_DEFERRED_LOADS|SYMOPT_LOAD_LINES|SYMOPT_UNDNAME );
+	static bool init=false;
+	if( !init ){ SymInitialize( proc,0,TRUE );init=true; }
+	STACKFRAME64 sf;
+	memset( &sf,0,sizeof(sf) );
+	sf.AddrPC.Offset=ctx.Rip;sf.AddrPC.Mode=AddrModeFlat;
+	sf.AddrFrame.Offset=ctx.Rbp;sf.AddrFrame.Mode=AddrModeFlat;
+	sf.AddrStack.Offset=ctx.Rsp;sf.AddrStack.Mode=AddrModeFlat;
+	fprintf( stderr,"%s""\n",title );
+	for( int i=0;i<40;i++ ){
+		if( i>0 && !StackWalk64( IMAGE_FILE_MACHINE_AMD64,proc,thread,&sf,&ctx,0,SymFunctionTableAccess64,SymGetModuleBase64,0 ) ) break;
+		if( !sf.AddrPC.Offset ) break;
+		char buf[sizeof(SYMBOL_INFO)+256];
+		SYMBOL_INFO *sym=(SYMBOL_INFO*)buf;
+		memset( buf,0,sizeof(buf) );
+		sym->SizeOfStruct=sizeof(SYMBOL_INFO);sym->MaxNameLen=255;
+		DWORD64 disp=0;
+		IMAGEHLP_MODULE64 mod;
+		memset( &mod,0,sizeof(mod) );mod.SizeOfStruct=sizeof(mod);
+		SymGetModuleInfo64( proc,sf.AddrPC.Offset,&mod );
+		if( SymFromAddr( proc,sf.AddrPC.Offset,&disp,sym ) ) fprintf( stderr,"  %s!%s+0x%llx\n",mod.ModuleName,sym->Name,(unsigned long long)disp );
+		else fprintf( stderr,"  %s!0x%llx\n",mod.ModuleName,(unsigned long long)sf.AddrPC.Offset );
+	}
+	fflush( stderr );
+}
+
+static void wdDumpStack(){
+	SuspendThread( wd_main_thread );
+	CONTEXT ctx;
+	memset( &ctx,0,sizeof(ctx) );
+	ctx.ContextFlags=CONTEXT_FULL;
+	if( GetThreadContext( wd_main_thread,&ctx ) ) wdPrintStack( wd_main_thread,ctx,"[watchdog] no frame presented, main thread stack:" );
+	ResumeThread( wd_main_thread );
+}
+
+static LONG CALLBACK wdVectoredHandler( EXCEPTION_POINTERS *e ){
+	DWORD code=e->ExceptionRecord->ExceptionCode;
+	if( code==EXCEPTION_BREAKPOINT || code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_STACK_OVERFLOW || code==EXCEPTION_INT_DIVIDE_BY_ZERO ){
+		char title[96];
+		snprintf( title,sizeof(title),"[exception] code 0x%08lx at 0x%llx, stack:",(unsigned long)code,(unsigned long long)e->ExceptionRecord->ExceptionAddress );
+		wdPrintStack( GetCurrentThread(),*e->ContextRecord,title );
+	}
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void wdStart(){
+	static bool started=false;
+	if( started ) return;
+	started=true;
+	const char *secs=getenv( "BB_WATCHDOG_SECS" );
+	if( !secs ) secs=getenv( "BB_TRACE_ERRORS" ) ? "600" : 0;
+	if( !secs ) return;
+	DuplicateHandle( GetCurrentProcess(),GetCurrentThread(),GetCurrentProcess(),&wd_main_thread,0,FALSE,DUPLICATE_SAME_ACCESS );
+	AddVectoredExceptionHandler( 1,wdVectoredHandler );
+	long long limit=atoll( secs )*1000;
+	wd_last_flip=wdNow();
+	std::thread( [limit](){
+		bool reported=false;
+		for(;;){
+			Sleep( 1000 );
+			long long idle=wdNow()-wd_last_flip;
+			if( idle>limit && !reported ){ reported=true;wdDumpStack(); }
+			if( idle<=limit ) reported=false;
+		}
+	} ).detach();
+}
+static void wdFlip(){ wdStart();wd_last_flip=wdNow(); }
+#else
+static void wdFlip(){}
+#endif
+
 static void debugScreenshot(){
 	static int frame=0;
 	++frame;
-	const char *frames=getenv( "BB_SCREENSHOT_FRAMES" ),*path=getenv( "BB_SCREENSHOT_PATH" );
+	const char *frames=getenv( "BB_SCREENSHOT_FRAMES" ),*path=getenv( "BB_SCREENSHOT_PATH" ),*every=getenv( "BB_SCREENSHOT_EVERY_MS" );
+	if( path && every && gx_canvas ){
+		// also save a frame every N milliseconds: <path>_t<seconds>.bmp
+		static auto start=std::chrono::steady_clock::now();
+		static long long next=atoll( every );
+		long long ms=std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now()-start ).count();
+		if( next>0 && ms>=next ){
+			saveCanvas( gx_canvas,std::string( path )+"_t"+std::to_string( ms/1000 )+".bmp" );
+			next+=atoll( every );
+		}
+	}
 	if( !frames || !path || !gx_canvas ) return;
 	std::string list=std::string( "," )+frames+",";
 	std::string key=std::string( "," )+std::to_string( frame )+",";
@@ -463,6 +562,7 @@ static void debugScreenshot(){
 }
 
 void BBCALL bbFlip( bb_int_t vwait ){
+	wdFlip();
 	debugScreenshot();
 	bbContextDriver->flip( vwait ? true : false );
 	if( !bbRuntimeIdle() ) RTEX( 0 );

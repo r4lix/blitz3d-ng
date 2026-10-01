@@ -12,6 +12,10 @@
 
 #include <map>
 #include <fstream>
+#include <sstream>
+#include <memory>
+#include <iterator>
+#include <zlib.h>
 
 static std::map<std::string,MeshModel*> frames_map;
 static int anim_len;
@@ -535,7 +539,7 @@ public:
 			if( eof() ) return Token( TOKEN_EOF,"<end-of-file>" );
 
 			std::string s( 1,c );
-			if( isalpha(c)||peek()=='_' ){
+			if( isalpha(c)||c=='_' ){
 				char p;
 				while( isalnum(p=peek())||p=='_'||p=='-' ) s+=get();
 
@@ -546,7 +550,12 @@ public:
 				}
 			}else if( isdigit(c)||c=='-' ){
 				while( isdigit(peek()) ) s+=get();
-				if( peek()=='.' ){
+				if( c!='-' && (isalpha(peek())||peek()=='_') ){
+					// a name that merely starts with digits, e.g. 09_lamp
+					char p;
+					while( isalnum(p=peek())||p=='_'||p=='-' ) s+=get();
+					t.type=TOKEN_NAME;
+				}else if( peek()=='.' ){
 					s+=get();
 					while( isdigit(peek()) ) s+=get();
 					if( peek()=='E' ){
@@ -597,7 +606,8 @@ public:
 
 		t=readToken();
 		if( t!="{" ){
-			if( t!=TOKEN_NAME ){
+			// names made only of digits are valid too (they tokenize as integers)
+			if( t!=TOKEN_NAME && t!=TOKEN_INTEGER ){
 				ex( "Expected name, but got "+t.text );
 			}
 			id=t.text;
@@ -761,6 +771,47 @@ public:
 	}
 };
 
+// DirectX "compressed" .x files (bzip = binary, tzip = text) are MSZip: after the
+// 16 byte header comes the uncompressed size, then blocks of
+//   u16 inflated size, u16 deflated size, "CK", raw deflate data
+// where every block may refer to the previous 32K of output as its dictionary.
+static bool inflateMSZip( const std::string &in,std::string &out ){
+	if( in.size()<4 ) return false;
+	unsigned total;
+	memcpy( &total,in.data(),4 );
+	size_t pos=4;
+	out.clear();
+	out.reserve( total );
+	while( pos+4<=in.size() ){
+		unsigned short inflated,deflated;
+		memcpy( &inflated,in.data()+pos,2 );
+		memcpy( &deflated,in.data()+pos+2,2 );
+		pos+=4;
+		if( deflated<2 || pos+deflated>in.size() || in[pos]!='C' || in[pos+1]!='K' ) return false;
+
+		z_stream zs;
+		memset( &zs,0,sizeof(zs) );
+		if( inflateInit2( &zs,-MAX_WBITS )!=Z_OK ) return false;
+		if( !out.empty() ){
+			size_t n=std::min<size_t>( out.size(),32768 );
+			inflateSetDictionary( &zs,(const Bytef*)out.data()+out.size()-n,(uInt)n );
+		}
+		std::string block( inflated,(char)0 );
+		zs.next_in=(Bytef*)in.data()+pos+2;
+		zs.avail_in=deflated-2;
+		zs.next_out=(Bytef*)&block[0];
+		zs.avail_out=inflated;
+		int r=inflate( &zs,Z_FINISH );
+		inflateEnd( &zs );
+		if( r!=Z_STREAM_END && r!=Z_OK && r!=Z_BUF_ERROR ) return false;
+		block.resize( inflated-zs.avail_out );
+		out+=block;
+		pos+=deflated;
+	}
+	// the stored size also counts the 16 byte file header
+	return !out.empty() && out.size()+16>=total;
+}
+
 MeshModel *Loader_X2::load( const std::string &filename,const Transform &t,int hint ){
 	conv_tform=t;
 	conv=flip_tris=false;
@@ -781,29 +832,55 @@ MeshModel *Loader_X2::load( const std::string &filename,const Transform &t,int h
 	if( x.readShort()!=XOFFILE_FORMAT_MAJOR_VERSION ) return 0;
 	x.readShort(); // minor version
 
-	switch( x.readInt() ){
+	const unsigned kind=x.readInt();
+	const unsigned bits=x.readInt();
+
+	std::stringbuf inflated;
+	std::unique_ptr<XParser> xz;
+	XParser *p=&x;
+	const bool compressed=
+		kind==(unsigned)((long)'b'+((long)'z'<<8)+((long)'i'<<16)+((long)'p'<<24)) ||
+		kind==(unsigned)((long)'t'+((long)'z'<<8)+((long)'i'<<16)+((long)'p'<<24));
+	if( compressed ){
+		std::string raw( (std::istreambuf_iterator<char>( in )),std::istreambuf_iterator<char>() ),body;
+		if( !inflateMSZip( raw,body ) ){
+			delete in;
+			return 0;
+		}
+		inflated.str( body );
+		xz.reset( new XParser( &inflated ) );
+		p=xz.get();
+	}
+
+	switch( kind ){
 	case XOFFILE_FORMAT_BINARY:
-		x.setFormat( XParser::BINARY );
+		p->setFormat( XParser::BINARY );
 		break;
 	case XOFFILE_FORMAT_TEXT:
-		x.setFormat( XParser::TEXT );
+		p->setFormat( XParser::TEXT );
 		break;
 	default:
-		return 0;
+		if( !compressed ){
+			delete in;
+			return 0;
+		}
+		p->setFormat( (kind&255)=='b' ? XParser::BINARY : XParser::TEXT );
+		break;
 	}
 
-	switch( x.readInt() ){
+	switch( bits ){
 	case XOFFILE_FORMAT_FLOAT_BITS_32:
-		x.setFloatBits( 32 );
+		p->setFloatBits( 32 );
 		break;
 	case XOFFILE_FORMAT_FLOAT_BITS_64:
-		x.setFloatBits( 64 );
+		p->setFloatBits( 64 );
 		break;
 	default:
+		delete in;
 		return 0;
 	}
 
-	MeshModel *e=x.parseFile();
+	MeshModel *e=p->parseFile();
 	frames_map.clear();
 
 	delete in;

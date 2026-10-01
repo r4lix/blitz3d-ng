@@ -13,6 +13,9 @@ FSOUND_Stream_Open%( filename$,mode%,memlength% ):"bbFSOUND_Stream_Open"
 FSOUND_IsPlaying%( channel% ):"bbFSOUND_IsPlaying"
 FSOUND_SetPan%( channel%,pan% ):"bbFSOUND_SetPan"
 
+-- debug aid (not part of the original game)
+RT_Trace( msg$ ):"bbRT_Trace"
+
 -- cpuid.dll
 CPUid$():"bbCPUid"
 CPUextendedId$():"bbCPUextendedId"

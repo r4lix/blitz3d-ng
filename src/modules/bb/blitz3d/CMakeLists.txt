@@ -13,6 +13,10 @@ endif()
 
 bb_end_module()
 
+# .x files may be MSZip-compressed (loader_x2.cpp)
+target_include_directories(bb.blitz3d PRIVATE ${PROJECT_SOURCE_DIR}/deps/zlib/tree ${PROJECT_BINARY_DIR}/deps/zlib/tree)
+target_link_libraries(bb.blitz3d zlibstatic)
+
 set_target_properties(bb.blitz3d PROPERTIES UNITY_BUILD_MODE GROUP)
 set_source_files_properties(${SOURCES} PROPERTIES UNITY_GROUP "group1")
 set_source_files_properties(loader_b3d.cpp PROPERTIES UNITY_GROUP "group2")
