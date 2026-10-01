@@ -34,6 +34,11 @@ Texture * BBCALL bbLoadAnimTexture( BBStr *file,bb_int_t flags,bb_int_t width,bb
 void BBCALL bbFreeTexture( Texture *texture );
 void BBCALL bbTextureBlend( Texture *texture,bb_int_t blend );
 void BBCALL bbTextureCoords( Texture *texture,bb_int_t coords );
+void BBCALL bbTextureBumpEnvMat( Texture *texture,bb_int_t x,bb_int_t y,bb_float_t value );
+void BBCALL bbTextureBumpEnvOffset( Texture *texture,bb_float_t offset );
+void BBCALL bbTextureBumpEnvScale( Texture *texture,bb_float_t scale );
+void BBCALL bbTextureLodBias( bb_float_t bias );
+BBStr * BBCALL bbErrorLog(  );
 void BBCALL bbScaleTexture( Texture *texture,bb_float_t u_scale,bb_float_t v_scale );
 void BBCALL bbRotateTexture( Texture *texture,bb_float_t angle );
 void BBCALL bbPositionTexture( Texture *texture,bb_float_t u_offset,bb_float_t v_offset );

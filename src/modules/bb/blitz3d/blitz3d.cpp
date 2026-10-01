@@ -405,6 +405,28 @@ BBLIB void BBCALL bbTextureCoords( Texture *t,bb_int_t flags ){
 	debugTexture(t);
 	t->setFlags( flags );
 }
+// Bump environment mapping is a Direct3D 7 fixed-function feature (blend mode 6).
+// There is no equivalent in the GL renderer yet, so these are accepted and ignored.
+BBLIB void BBCALL bbTextureBumpEnvMat( Texture *t,bb_int_t x,bb_int_t y,bb_float_t value ){
+	debugTexture(t);
+}
+
+BBLIB void BBCALL bbTextureBumpEnvOffset( Texture *t,bb_float_t offset ){
+	debugTexture(t);
+}
+
+BBLIB void BBCALL bbTextureBumpEnvScale( Texture *t,bb_float_t scale ){
+	debugTexture(t);
+}
+// Global mip LOD bias is not applied by the GL renderer yet.
+BBLIB void BBCALL bbTextureLodBias( bb_float_t bias ){
+}
+
+// Blitz3D extension used by SCP:CB's CatchErrors(). Runtime errors are not
+// captured into a log here, so there is never anything to report.
+BBLIB BBStr * BBCALL bbErrorLog(){
+	return d_new BBStr( "" );
+}
 
 BBLIB void BBCALL bbScaleTexture( Texture *t,bb_float_t u_scale,bb_float_t v_scale ){
 	debugTexture(t);
