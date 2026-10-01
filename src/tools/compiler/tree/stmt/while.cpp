@@ -49,7 +49,8 @@ void WhileNode::translate2( Codegen_LLVM *g ){
 		auto body=llvm::BasicBlock::Create( *g->context,"body" );
 
 		auto v=expr->translate2( g );
-		v=g->builder->CreateIntCast( v,llvm::Type::getInt1Ty( *g->context ),true ); // TODO: this is a hack and hopefully optimized out...
+		// truthiness is "non-zero", not "low bit set" (truncating made `While 2` false)
+		if( !llvm::dyn_cast<llvm::CmpInst>(v) ) v=compare2( NE,v,0,expr->sem_type,g );
 
 		g->builder->CreateCondBr( v,body,next );
 

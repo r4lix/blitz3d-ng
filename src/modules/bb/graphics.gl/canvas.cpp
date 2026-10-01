@@ -403,33 +403,44 @@ void GLCanvas::text( int x,int y,const std::string &t ){
 }
 
 void GLCanvas::blit( int x,int y,BBCanvas *s,int src_x,int src_y,int src_w,int src_h,bool solid ){
-	uint32_t cfb;
-	GL( glGetIntegerv( GL_FRAMEBUFFER_BINDING,(GLint*)&cfb ) );
+	GLint cfb;
+	GL( glGetIntegerv( GL_FRAMEBUFFER_BINDING,&cfb ) );
 
 	float sx,sy,dx,dy;
 	s->getScale( &sx,&sy );
 	getScale( &dx,&dy );
 
-	// LOGD( "src: scale(%f, %f), %i,%i",sx,sy,s->getWidth(),s->getHeight() );
-	// LOGD( "dst: scale(%f, %f), %i,%i",dx,dy,getWidth(),getHeight() );
-
 	GLCanvas *src=(GLCanvas*)s;
 	unsigned int rfb=src->framebufferId(),dfb=framebufferId();
 
-	int srcX0=src_x*sx;
-	int srcY0=src->getHeight()-(src_h+src_y)*sy;
-	int srcX1=src_x*sx+src_w*sx;
-	int srcY1=src->getHeight()-src_y*sy;
-	int dstX0=x*dx;
-	int dstY0=getHeight()-(src_h+y)*dy;
-	int dstX1=(x+src_w)*dx;
-	int dstY1=getHeight()-y*dy;
+	// Canvas rows are addressed top-down in Blitz. The window framebuffer is stored
+	// bottom row first, but texture-backed canvases are stored top row first (the same
+	// order as loaded images), so a blit between the two kinds has to flip: give each
+	// side its bottom and top edge in framebuffer rows and let GL map bottom->bottom.
+	struct Edges{ int bottom,top; };
+	auto edges=[]( const GLCanvas *c,int y0,int h,float scale )->Edges{
+		const int top=(int)(y0*scale),bottom=(int)((y0+h)*scale);
+		if( c->framebuffer==0 && (c->mode==GL_FRONT||c->mode==GL_BACK) ){
+			return Edges{ c->height-bottom,c->height-top };
+		}
+		return Edges{ bottom,top };
+	};
+	Edges se=edges( src,src_y,src_h,sy ),de=edges( this,y,src_h,dy );
+
+	int srcX0=src_x*sx,srcX1=src_x*sx+src_w*sx;
+	int dstX0=x*dx,dstX1=(x+src_w)*dx;
 
 	GL( glBindFramebuffer( GL_READ_FRAMEBUFFER,rfb ) );
 	GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER,dfb ) );
 
-	GL( glBlitFramebuffer( srcX0,srcY0,srcX1,srcY1,dstX0,dstY0,dstX1,dstY1,GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT,GL_NEAREST ) );
-	GL( glGenerateMipmap( target ) );
+	// colour only: the two framebuffers need not share a depth format
+	GL( glBlitFramebuffer( srcX0,se.bottom,srcX1,se.top,dstX0,de.bottom,dstX1,de.top,GL_COLOR_BUFFER_BIT,GL_NEAREST ) );
+
+	if( texture ){
+		GL( glBindTexture( target,texture ) );
+		GL( glGenerateMipmap( target ) );
+		GL( glBindTexture( target,0 ) );
+	}
 
 	if( !(flags&CANVAS_TEX_VIDMEM) ){
 		downloadData();
@@ -748,7 +759,8 @@ void GLCanvas::downloadData(){
 		GL( glGetIntegerv( GL_FRAMEBUFFER_BINDING,&prev ) );
 		unsigned fb=framebufferId();
 		GL( glBindFramebuffer( GL_FRAMEBUFFER,fb ) );
-		GL( glReadPixels( 0,0,width,height,GL_BGRA,GL_UNSIGNED_BYTE,bits  ) );
+		// pixmaps hold RGBA, locked pixel buffers hold BGRA
+		GL( glReadPixels( 0,0,width,height,pixmap?GL_RGBA:GL_BGRA,GL_UNSIGNED_BYTE,bits  ) );
 		GL( glBindFramebuffer( GL_FRAMEBUFFER,prev ) );
 	}
 }
@@ -779,7 +791,7 @@ unsigned int GLCanvas::framebufferId(){
 
 	GLenum status=GL( glCheckFramebufferStatus( GL_FRAMEBUFFER ) );
 	if( status!=GL_FRAMEBUFFER_COMPLETE ){
-		LOGD( "fb error: %s\n",bbGLFramebufferStatusString( status ) );
+		LOGD( "fb error: %s (canvas %dx%d target=0x%x texture=%u flags=0x%x)\n",bbGLFramebufferStatusString( status ),width,height,(unsigned)target,texture,(unsigned)flags );
 	}
 
 	return framebuffer;

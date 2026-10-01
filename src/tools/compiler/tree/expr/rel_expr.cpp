@@ -71,7 +71,9 @@ llvm::Value *RelExprNode::translate2( Codegen_LLVM *g ){
 	auto *r=rhs->translate2( g );
 
 	auto *t=compare2( op,l,r,opType,g );
-	return g->builder->CreateIntCast( t,Type::int_type->llvmType( g->context.get() ),true );
+	// a true comparison is 1 in Blitz (sign-extending the i1 gave -1, which breaks
+	// arithmetic like `index+(x<>0)`)
+	return g->builder->CreateIntCast( t,Type::int_type->llvmType( g->context.get() ),false );
 }
 #endif
 
