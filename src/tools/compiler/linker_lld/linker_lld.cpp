@@ -92,7 +92,17 @@ void Linker_LLD::createExe( bool debug,const std::string &rt,const Target &targe
 	std::string devkitpro;
 	if( nx ){
 		devkitpro="/opt/devkitpro";
+		if( const char *dkp=getenv( "DEVKITPRO" ) ){
+			devkitpro=dkp;
+			for( char &c:devkitpro ) if( c=='\\' ) c='/';
+		}
 	}
+	// the Switch uses GNU ld style arguments even when the compiler itself runs on Windows
+#ifdef BB_WINDOWS
+	const bool msvcArgs=!nx;
+#else
+	const bool msvcArgs=false;
+#endif
 
 	// TODO: sort out all the lazy strdup business below...
 	std::vector<std::string> args,libs,systemlibs;
@@ -321,24 +331,24 @@ void Linker_LLD::createExe( bool debug,const std::string &rt,const Target &targe
 	}
 #endif
 
-#ifdef BB_WINDOWS
-	args.push_back( "/lldignoreenv" );
+	if( msvcArgs ){
+		args.push_back( "/lldignoreenv" );
 
-	std::string machine="/machine:X64";
-	args.push_back( machine );
+		std::string machine="/machine:X64";
+		args.push_back( machine );
 
-	std::string outArg="/out:"+binaryPath;
-	args.push_back( outArg );
-#else
-	args.push_back("-o");args.push_back( binaryPath );
-#endif
+		std::string outArg="/out:"+binaryPath;
+		args.push_back( outArg );
+	}else{
+		args.push_back("-o");args.push_back( binaryPath );
+	}
 
-#ifdef BB_WINDOWS
-	std::string libPath="/libpath:"+libdir;
-	args.push_back( libPath );
-#else
-	args.push_back( "-L"+libdir );
-#endif
+	if( msvcArgs ){
+		std::string libPath="/libpath:"+libdir;
+		args.push_back( libPath );
+	}else{
+		args.push_back( "-L"+libdir );
+	}
 
 	if( nx ){
 		args.push_back( "-L"+devkitpro+"/portlibs/switch/lib" );
@@ -359,6 +369,12 @@ void Linker_LLD::createExe( bool debug,const std::string &rt,const Target &targe
 	}
 
 	std::string mainPath=std::string(tmpnam(0))+".o";
+#ifdef WIN32
+	// tmpnam() names a file in the drive root on Windows, which is usually not writable
+	if( mainPath.size() && (mainPath[0]=='\\' || mainPath[0]=='/') ){
+		if( const char *tmp=getenv( "TEMP" ) ) mainPath=std::string( tmp )+mainPath;
+	}
+#endif
 	std::ofstream mainFile( mainPath,std::ios_base::binary );
 	mainFile.write( mainObj.c_str(),mainObj.size() );
 	mainFile.flush();
@@ -368,26 +384,23 @@ void Linker_LLD::createExe( bool debug,const std::string &rt,const Target &targe
 
 	for( auto lib:libs ){
 		std::string arg;
-#ifdef BB_WINDOWS
-		arg=lib+std::string(".lib");
-#else
-		arg="-l"+std::string(lib);
-#endif
+		if( msvcArgs ) arg=lib+std::string(".lib");
+		else arg="-l"+std::string(lib);
 		args.push_back( arg );
 	}
 
 	for( auto lib:systemlibs ){
-#ifdef BB_WINDOWS
-		args.push_back( lib+".lib" );
-#else
-		std::string fw="-framework";
-		if( lib.find( fw )==0 ) {
-			args.push_back( fw );
-			args.push_back( lib.substr( fw.size()+1 ) );
-		} else {
-			args.push_back( "-l"+lib );
+		if( msvcArgs ){
+			args.push_back( lib+".lib" );
+		}else{
+			std::string fw="-framework";
+			if( lib.find( fw )==0 ) {
+				args.push_back( fw );
+				args.push_back( lib.substr( fw.size()+1 ) );
+			} else {
+				args.push_back( "-l"+lib );
+			}
 		}
-#endif
 	}
 
 	if( nux||nx ){
@@ -460,7 +473,14 @@ void Linker_LLD::createExe( bool debug,const std::string &rt,const Target &targe
 		std::string cmdline="";
 		for( auto arg:args ) cmdline+=arg+" ";
 
-		success=system( ("/opt/devkitpro/devkitA64/bin/aarch64-none-elf-ld "+cmdline).c_str() )!=-1;
+		std::string ld=devkitpro+"/devkitA64/bin/aarch64-none-elf-ld";
+#ifdef WIN32
+		// cmd.exe strips the outer pair of quotes
+		cmdline="\"\""+ld+".exe\" "+cmdline+"\"";
+#else
+		cmdline=ld+" "+cmdline;
+#endif
+		success=system( cmdline.c_str() )==0;
 	}else{
 		std::vector<char *> _args;_args.reserve( args.size()+1 );
 

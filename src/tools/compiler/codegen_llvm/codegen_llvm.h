@@ -10,6 +10,8 @@
 #include <string>
 #include "../target.h"
 
+class Environ;
+
 class Codegen_LLVM {
 public:
 	Codegen_LLVM( bool debug );
@@ -62,6 +64,10 @@ public:
 	llvm::GlobalVariable *getArray( std::string &ident,int dims );
 
 	llvm::Function *bbMain;
+
+	// environment of the function being translated (null in the main program); Return
+	// uses it to release the function's local strings, objects and arrays
+	Environ *funcEnv=0;
 
 	void SetTarget( const Target &target );
 

@@ -450,6 +450,56 @@ void BBCALL bbVWait( bb_int_t n ){
 
 static bool saveCanvas( BBCanvas *c,const std::string &f );
 
+// The runtime reports where the pointer is and whether the game wants it shown. Platforms
+// with no mouse cursor of their own (the Switch) get a small one drawn here before each
+// frame is presented; elsewhere set BB_SOFT_CURSOR=1 to test it.
+int bbPointerX=0,bbPointerY=0;
+bool bbPointerVisible=true;
+
+static void drawSoftCursor(){
+	static int enabled=-1;
+	if( enabled<0 ){
+#ifdef BB_NX
+		enabled=1;
+#else
+		enabled=getenv( "BB_SOFT_CURSOR" ) ? 1 : 0;
+#endif
+	}
+	if( !enabled || !bbPointerVisible || !gx_graphics || !gx_canvas ) return;
+
+	BBCanvas *c=gx_graphics->getBackCanvas();
+	if( !c ) return;
+
+	int ox,oy,hx,hy,vx,vy,vw,vh;
+	c->getOrigin( &ox,&oy );
+	c->getHandle( &hx,&hy );
+	c->getViewport( &vx,&vy,&vw,&vh );
+	unsigned color=c->getColor();
+
+	c->set();
+	c->setOrigin( 0,0 );
+	c->setHandle( 0,0 );
+	c->setViewport( 0,0,c->getWidth(),c->getHeight() );
+
+	const int x=bbPointerX,y=bbPointerY;
+	for( int pass=0;pass<2;pass++ ){
+		const int o=pass==0 ? 1 : 0; // black shadow, then white
+		c->setColor( pass==0 ? 0x000000 : 0xffffff );
+		c->line( x+o,y+o,x+o,y+o+18 );
+		c->line( x+o,y+o,x+o+12,y+o+13 );
+		c->line( x+o,y+o+18,x+o+4,y+o+14 );
+		c->line( x+o+4,y+o+14,x+o+12,y+o+13 );
+		c->line( x+o+5,y+o+14,x+o+9,y+o+21 );
+		c->line( x+o+1,y+o+2,x+o+1,y+o+16 );
+	}
+
+	c->setColor( color );
+	c->setOrigin( ox,oy );
+	c->setHandle( hx,hy );
+	c->setViewport( vx,vy,vw,vh );
+	gx_canvas->set();
+}
+
 // Debug aid: BB_SCREENSHOT_FRAMES="30,300" BB_SCREENSHOT_PATH="shot" writes
 // shot_<frame>.bmp from the current buffer just before those frames are shown.
 #ifdef WIN32
@@ -563,6 +613,7 @@ static void debugScreenshot(){
 
 void BBCALL bbFlip( bb_int_t vwait ){
 	wdFlip();
+	drawSoftCursor();
 	debugScreenshot();
 	bbContextDriver->flip( vwait ? true : false );
 	if( !bbRuntimeIdle() ) RTEX( 0 );

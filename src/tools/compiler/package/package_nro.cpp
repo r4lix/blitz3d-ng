@@ -2,8 +2,18 @@
 #include "package.h"
 #include <iostream>
 #include <stdlib.h>
+#include <filesystem>
 
-#define RUN( args ) if( system( std::string(args).c_str() )!=0 ) { std::cerr<<"error on "<<__FILE__<<":"<<__LINE__<<std::endl;exit(1); }
+// system() goes through cmd.exe on Windows, which wants the whole command wrapped in quotes
+static int run( const std::string &cmd ){
+#ifdef WIN32
+	return system( ("\""+cmd+"\"").c_str() );
+#else
+	return system( cmd.c_str() );
+#endif
+}
+
+#define RUN( args ) if( run( std::string(args) )!=0 ) { std::cerr<<"error on "<<__FILE__<<":"<<__LINE__<<std::endl;exit(1); }
 
 void createNRO( const std::string &out,const std::string &home,const std::string &devkitpro,const BundleInfo &bundle,const Target &target,const std::string &elfPath ){
 	std::string dir=filenamepath( out );
@@ -14,14 +24,21 @@ void createNRO( const std::string &out,const std::string &home,const std::string
 	std::string tmpdir=dir+"/"+base+"-tmp";
 	std::string romDir=tmpdir+"/romfs";
 
-	RUN( "mkdir -p "+romDir );
+	std::filesystem::create_directories( romDir );
 	bundleFiles( bundle,romDir );
 
 	// must be a jpg? 256x256
 	std::string icon=home+"/cfg/bbexe.jpg";
+	if( !std::filesystem::exists( icon ) ) icon=devkitpro+"/libnx/default_icon.jpg";
 
-	RUN( devkitpro+"/tools/bin/nacptool --create \""+bundle.appName+"\" \"Unspecified Author\" \"1.0.0\" "+nacpPath );
-	RUN( devkitpro+"/tools/bin/elf2nro "+elfPath+" "+out+" --icon="+icon+" --nacp="+nacpPath+" --romfsdir="+romDir );
+#ifdef WIN32
+	const std::string exe=".exe";
+#else
+	const std::string exe="";
+#endif
+
+	RUN( "\""+devkitpro+"/tools/bin/nacptool"+exe+"\" --create \""+bundle.appName+"\" \"Unspecified Author\" \"1.0.0\" \""+nacpPath+"\"" );
+	RUN( "\""+devkitpro+"/tools/bin/elf2nro"+exe+"\" \""+elfPath+"\" \""+out+"\" --icon=\""+icon+"\" --nacp=\""+nacpPath+"\" --romfsdir=\""+romDir+"\"" );
 
 	remove( elfPath.c_str() );
 	remove( nacpPath.c_str() );

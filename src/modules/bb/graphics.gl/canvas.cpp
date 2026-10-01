@@ -1,3 +1,4 @@
+#include <vector>
 #include "../stdutil/stdutil.h"
 #include <bb/graphics/font.h>
 #include "canvas.h"
@@ -79,7 +80,9 @@ bool makeProgram( ContextResources *res,float sx,float sy,float tx,float ty,bool
 
 static
 void initArrays( int size,GLuint* buffer,GLuint *array ){
-	if( !glIsVertexArray( buffer[0] ) ){
+	// (this used to ask glIsVertexArray about a *buffer* name, so it re-created the arrays,
+	// and leaked them, on every call)
+	if( array[0]==0 || !glIsVertexArray( array[0] ) ){
 		GL( glGenVertexArrays( size,array ) );
 		GL( glGenBuffers( size,buffer ) );
 
@@ -672,6 +675,13 @@ void GLCanvas::unset(){
 void GLCanvas::uploadData(){
 	if( texture && target!=GL_TEXTURE_2D ) return;
 
+	// nothing left on the CPU side to upload (the texture was released, see
+	// discardSystemCopy): the GPU copy is the truth
+	if( texture && !pixels && !pixmap ){
+		dirty=false;
+		return;
+	}
+
 	BBPixmap *pm=0;
 	void *data=0;
 
@@ -726,11 +736,19 @@ void GLCanvas::uploadData(){
 	GL( glActiveTexture( GL_TEXTURE0 ) );
 	GL( glBindTexture( target,texture ) );
 	for( int i=0;i<(target==GL_TEXTURE_2D?1:6);i++ ){
+		const GLenum face=target==GL_TEXTURE_2D?target:_cube_order[i];
 #ifdef BB_DESKTOP
 		// locked pixels come from glReadPixels as BGRA
-		GL( glTexImage2D( target==GL_TEXTURE_2D?target:_cube_order[i],0,GL_RGBA,width,height,0,pixels?GL_BGRA:GL_RGBA,GL_UNSIGNED_BYTE,data ) );
+		GL( glTexImage2D( face,0,GL_RGBA,width,height,0,pixels?GL_BGRA:GL_RGBA,GL_UNSIGNED_BYTE,data ) );
 #else
-		GL( glTexImage2D( target==GL_TEXTURE_2D?target:_cube_order[i],0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,data ) );
+		if( pixels ){
+			// OpenGL ES has no BGRA upload: swap a copy into RGBA order
+			std::vector<unsigned char> rgba( (unsigned char*)pixels,(unsigned char*)pixels+(size_t)width*height*4 );
+			for( size_t k=0;k<rgba.size();k+=4 ){ unsigned char t=rgba[k];rgba[k]=rgba[k+2];rgba[k+2]=t; }
+			GL( glTexImage2D( face,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,rgba.data() ) );
+		}else{
+			GL( glTexImage2D( face,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,data ) );
+		}
 #endif
 	}
 	GL( glGenerateMipmap( target ) );
@@ -760,7 +778,16 @@ void GLCanvas::downloadData(){
 		unsigned fb=framebufferId();
 		GL( glBindFramebuffer( GL_FRAMEBUFFER,fb ) );
 		// pixmaps hold RGBA, locked pixel buffers hold BGRA
+#ifdef BB_DESKTOP
 		GL( glReadPixels( 0,0,width,height,pixmap?GL_RGBA:GL_BGRA,GL_UNSIGNED_BYTE,bits  ) );
+#else
+		// OpenGL ES can only read RGBA: read that and swap into BGRA order ourselves
+		GL( glReadPixels( 0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,bits  ) );
+		if( !pixmap ){
+			unsigned char *p=(unsigned char*)bits;
+			for( int i=0;i<width*height;i++,p+=4 ){ unsigned char t=p[0];p[0]=p[2];p[2]=t; }
+		}
+#endif
 		GL( glBindFramebuffer( GL_FRAMEBUFFER,prev ) );
 	}
 }
@@ -795,6 +822,14 @@ unsigned int GLCanvas::framebufferId(){
 	}
 
 	return framebuffer;
+}
+
+void GLCanvas::discardSystemCopy(){
+	if( pixmap && texture && !pixmap_locked ){
+		delete pixmap;
+		pixmap=0;
+		dirty=false;
+	}
 }
 
 void GLCanvas::setPixmap( BBPixmap *pm ){

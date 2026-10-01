@@ -47,6 +47,9 @@ public:
 	void uploadData();
 	void downloadData();
 	void setPixmap( BBPixmap *pm );
+	// 3D textures live on the GPU after loading; keeping the decoded copy as well
+	// doubled their memory. Pixel access afterwards reads back from the GPU.
+	void discardSystemCopy();
 	void setFramebuffer( unsigned int fb,int m );
 
 	void resize( int w,int h,float d );

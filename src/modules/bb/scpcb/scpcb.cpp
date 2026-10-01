@@ -44,6 +44,7 @@ bb_int_t BBCALL bbFSOUND_Close(){
 
 bb_int_t BBCALL bbFSOUND_Stream_Open( BBStr *filename,bb_int_t mode,bb_int_t memlength ){
 	std::string f=*filename;delete filename;
+	f=canonicalpath( f );
 	FILE *fp=fopen( f.c_str(),"rb" );
 	if( !fp ) return 0;
 	fclose( fp );

@@ -60,6 +60,9 @@ void ReturnNode::translate2( Codegen_LLVM *g ){
 			v=g->builder->CreateBitOrPointerCast( v,expr->sem_type->llvmType( g->context.get() ) );
 		}
 
+		// the value is computed first (it may read the locals), then the locals are released
+		if( g->funcEnv ) deleteVars2( g->funcEnv,g );
+
 		g->builder->CreateRet( v );
 	}else{
 		auto br=g->builder->CreateIndirectBr( g->CallIntrinsic( "_bbPopGosub",llvm::PointerType::get( *g->context,0 ),0 ) );

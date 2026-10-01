@@ -12,7 +12,25 @@ struct BBFontData{
 	BBFontData():size(0),data(0){}
 };
 
-#ifdef BB_WINDOWS
+#ifdef BB_NX
+#include <switch.h>
+
+// The console has no font files to look up, but the system ships a shared TTF.
+bool lookupFontData( const std::string &fontName,BBFontData &font ){
+	static bool tried=false,ok=false;
+	if( !tried ){
+		tried=true;
+		ok=R_SUCCEEDED( plInitialize( PlServiceType_User ) ); // kept open: the font data lives in the service
+	}
+	if( !ok ) return false;
+
+	PlFontData shared;
+	if( R_FAILED( plGetSharedFontByType( &shared,PlSharedFontType_Standard ) ) ) return false;
+	font.size=shared.size;
+	font.data=(unsigned char*)shared.address;
+	return font.data && font.size>0;
+}
+#elif defined(BB_WINDOWS)
 bool lookupFontData( const std::string &fontName,BBFontData &font ){
 	bool bold=false,italic=false,underline=false,strikeout=false;
 
@@ -135,7 +153,7 @@ BBImageFont *BBImageFont::load( const std::string &name,int height,float density
 			// TODO: needs more work
 			std::string ext=tolower( name.substr( n+1 ) );
 			if( ext=="ttf"||ext=="fon" ){
-				FILE *in=fopen( name.c_str(),"rb" );
+				FILE *in=fopen( canonicalpath( name ).c_str(),"rb" );
 				if( !in ) return 0;
 
 				fseek( in,0,SEEK_END );

@@ -123,6 +123,34 @@ void Node::createVars2( Environ *e, Codegen_LLVM *g ){
 }
 #endif
 
+#ifdef USE_LLVM
+// The LLVM counterpart of deleteVars below. Without it every call leaked its string
+// parameters/locals, object references and local arrays.
+void Node::deleteVars2( Environ *e,Codegen_LLVM *g ){
+	for( int k=0;k<e->decls->size();++k ){
+		Decl *d=e->decls->decls[k];
+		if( !d->ptr ) continue;
+		Type *type=d->type;
+		if( type==Type::string_type ){
+			if( d->kind==DECL_LOCAL || d->kind==DECL_PARAM ){
+				llvm::Value *v=g->builder->CreateLoad( type->llvmType( g->context.get() ),d->ptr );
+				g->CallIntrinsic( "_bbStrRelease",g->voidTy,1,v );
+			}
+		}else if( type->structType() ){
+			if( d->kind==DECL_LOCAL ){
+				llvm::Value *v=g->builder->CreateLoad( type->llvmType( g->context.get() ),d->ptr );
+				g->CallIntrinsic( "_bbObjRelease",g->voidTy,1,g->CastToObjPtr( v ) );
+			}
+		}else if( VectorType *vt=type->vectorType() ){
+			if( d->kind==DECL_LOCAL ){
+				llvm::Value *v=g->builder->CreateLoad( vt->llvmType( g->context.get() ),d->ptr );
+				g->CallIntrinsic( "_bbVecFree",g->voidTy,2,v,vt->llvmDef( g ) );
+			}
+		}
+	}
+}
+#endif
+
 ////////////////////////
 // release local vars //
 ////////////////////////

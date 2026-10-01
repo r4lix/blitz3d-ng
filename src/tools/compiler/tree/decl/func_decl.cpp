@@ -76,7 +76,9 @@ void FuncDeclNode::translate2( Codegen_LLVM *g ){
 
 	createVars2( sem_env,g );
 
+	g->funcEnv=sem_env;
 	stmts->translate2( g );
+	g->funcEnv=0;
 
 	auto final_block=g->builder->GetInsertBlock();
 	if( final_block->size()==0 ){

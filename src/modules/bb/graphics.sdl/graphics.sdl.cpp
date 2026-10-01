@@ -123,9 +123,16 @@ BBGraphics *SDLContextDriver::openGraphics( int w,int h,int d,int driver,int fla
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION,3 );
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION,3 );
 #else
+#ifdef BB_NX
+		// the Switch's mesa stack is OpenGL ES; ask for it explicitly
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_ES );
+#endif
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION,3 );
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION,0 );
 #endif
+		// the 3D renderer needs a real depth buffer (the default can be 16 bit)
+		SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE,24 );
+		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER,1 );
 		inited=true;
 	}
 

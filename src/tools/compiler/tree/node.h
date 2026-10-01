@@ -61,6 +61,7 @@ struct Node{
 #ifdef USE_LLVM
 	static llvm::Value *compare2( int op,llvm::Value *l,llvm::Value *r,Type *ty,Codegen_LLVM *g );
 	static void createVars2( Environ *e, Codegen_LLVM *g );
+	static void deleteVars2( Environ *e, Codegen_LLVM *g );
 #endif
 };
 

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include "../bundle.h"
 
 #include <iostream>
@@ -31,7 +32,10 @@ void bundleFiles( const BundleInfo &bundle,const std::string &path ){
 		}
 
 		std::cout<<"Copying "+file.relativePath+"..."<<std::endl;
-		if( system( ("cp "+from+" "+path+"/"+to).c_str() ) ){
+		std::error_code ec;
+		std::filesystem::copy_file( from,path+"/"+to,std::filesystem::copy_options::overwrite_existing,ec );
+		if( ec ){
+			std::cerr<<"failed to copy "<<from<<": "<<ec.message()<<std::endl;
 			exit( 1 );
 		}
 	}

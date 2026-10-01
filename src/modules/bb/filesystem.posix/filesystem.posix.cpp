@@ -2,6 +2,7 @@
 #include "../stdutil/stdutil.h"
 #include "filesystem.posix.h"
 
+#include <cstdio>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -37,15 +38,23 @@ PosixFileSystem::~PosixFileSystem(){
 }
 
 bool PosixFileSystem::createDir( const std::string &dir ){
-	RTEX( "PosixFileSystem::createDir not implemented" );
+	std::string t=canonicalpath( dir );
+	while( t.size()>1 && t.back()=='/' ) t.pop_back();
+	return mkdir( t.c_str(),0755 )==0;
 }
 
 bool PosixFileSystem::deleteDir( const std::string &dir ){
-	RTEX( "PosixFileSystem::deleteDir not implemented" );
+	std::string t=canonicalpath( dir );
+	while( t.size()>1 && t.back()=='/' ) t.pop_back();
+	return rmdir( t.c_str() )==0;
 }
 
 bool PosixFileSystem::createFile( const std::string &file ){
-	RTEX( "PosixFileSystem::createFile not implemented" );
+	std::string t=canonicalpath( file );
+	FILE *f=fopen( t.c_str(),"wb" );
+	if( !f ) return false;
+	fclose( f );
+	return true;
 }
 
 bool PosixFileSystem::deleteFile( const std::string &file ){
@@ -54,11 +63,24 @@ bool PosixFileSystem::deleteFile( const std::string &file ){
 }
 
 bool PosixFileSystem::copyFile( const std::string &src,const std::string &dest ){
-	RTEX( "PosixFileSystem::copyFile not implemented" );
+	std::string a=canonicalpath( src ),b=canonicalpath( dest );
+	FILE *in=fopen( a.c_str(),"rb" );
+	if( !in ) return false;
+	FILE *out=fopen( b.c_str(),"wb" );
+	if( !out ){ fclose( in );return false; }
+	char buf[16384];
+	size_t n;
+	bool ok=true;
+	while( (n=fread( buf,1,sizeof(buf),in ))>0 ){
+		if( fwrite( buf,1,n,out )!=n ){ ok=false;break; }
+	}
+	fclose( in );
+	fclose( out );
+	return ok;
 }
 
 bool PosixFileSystem::renameFile( const std::string &src,const std::string &dest ){
-	RTEX( "PosixFileSystem::renameFile not implemented" );
+	return rename( canonicalpath( src ).c_str(),canonicalpath( dest ).c_str() )==0;
 }
 
 bool PosixFileSystem::setCurrentDir( const std::string &dir ){

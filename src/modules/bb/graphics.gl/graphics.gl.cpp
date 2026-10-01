@@ -164,6 +164,41 @@ BBCanvas *GLGraphics::createCanvas( int width,int height,int flags ){
 	return canvas;
 }
 
+// Largest texture dimension to keep (0 = no limit). The Switch has far less memory
+// than the PC this was designed for; BB_TEXTURE_MAX overrides the default.
+static int textureSizeCap(){
+	static int cap=-1;
+	if( cap<0 ){
+#ifdef BB_NX
+		cap=512;
+#else
+		cap=0;
+#endif
+		if( const char *e=getenv( "BB_TEXTURE_MAX" ) ) cap=atoi( e );
+	}
+	return cap;
+}
+
+// 2x2 box filter on a 4 byte per pixel pixmap
+static void halvePixmap( BBPixmap *pm ){
+	const int w=pm->width,h=pm->height,nw=w>1 ? w/2 : 1,nh=h>1 ? h/2 : 1;
+	unsigned char *out=new unsigned char[(size_t)nw*nh*4];
+	for( int y=0;y<nh;y++ ){
+		for( int x=0;x<nw;x++ ){
+			const int x0=x*2,y0=y*2,x1=x0+1<w ? x0+1 : x0,y1=y0+1<h ? y0+1 : y0;
+			for( int c=0;c<4;c++ ){
+				int sum=pm->bits[((size_t)y0*w+x0)*4+c]+pm->bits[((size_t)y0*w+x1)*4+c]
+					+pm->bits[((size_t)y1*w+x0)*4+c]+pm->bits[((size_t)y1*w+x1)*4+c];
+				out[((size_t)y*nw+x)*4+c]=(unsigned char)((sum+2)/4);
+			}
+		}
+	}
+	delete[] pm->bits;
+	pm->bits=out;
+	pm->width=nw;pm->height=nh;
+	pm->pitch=nw*4;
+}
+
 BBCanvas *GLGraphics::loadCanvas( const std::string &file,int flags ){
 	BBPixmap *pixmap=bbLoadPixmap( file );
 	if( !pixmap ) return 0;
@@ -171,9 +206,20 @@ BBCanvas *GLGraphics::loadCanvas( const std::string &file,int flags ){
 	pixmap->flipVertically();
 	pixmap->swapBytes0and2();
 
+	// 3D textures (as opposed to 2D images) get a size cap and drop their CPU copy
+	const bool texture=(flags&(BBCanvas::CANVAS_TEX_RGB|BBCanvas::CANVAS_TEX_ALPHA|BBCanvas::CANVAS_TEX_MASK))!=0;
+	if( texture && !(flags&BBCanvas::CANVAS_NONDISPLAY) ){
+		// (NONDISPLAY loads are sheets that get cut into frames by pixel size: leave those)
+		int cap=textureSizeCap();
+		while( cap>0 && (pixmap->width>cap || pixmap->height>cap) && pixmap->width>1 && pixmap->height>1 && pixmap->bpp==4 ){
+			halvePixmap( pixmap );
+		}
+	}
+
 	GLCanvas *canvas=d_new GLCanvas( &res,flags );
 	canvas->setPixmap( pixmap );
 	canvas_set.insert( canvas );
+	if( texture && !(flags&BBCanvas::CANVAS_NONDISPLAY) ) canvas->discardSystemCopy();
 
 	return canvas;
 }

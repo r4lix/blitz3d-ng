@@ -1,4 +1,10 @@
-if(BB_OVR OR BB_NX)
+if(BB_NX)
+  # devkitPro ships SDL2 with the Switch video (EGL/GLES), audio and joystick drivers
+  add_library(SDL2 INTERFACE)
+  target_include_directories(SDL2 INTERFACE ${DEVKITPRO}/portlibs/switch/include/SDL2 ${DEVKITPRO}/portlibs/switch/include)
+  return()
+endif()
+if(BB_OVR)
   return()
 endif()
 
