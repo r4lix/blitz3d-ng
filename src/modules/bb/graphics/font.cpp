@@ -126,7 +126,9 @@ BBImageFont *BBImageFont::load( const std::string &name,int height,float density
 	if( bbFontCache.count( name )==0 ){
 		int n=name.rfind( "." );
 		if( n==std::string::npos ){
-			if( !lookupFontData( name,font ) ){
+			// Unknown names (including Blitz's own "Blitz" font) fall back to the
+			// default face, as the original runtime does.
+			if( !lookupFontData( name,font ) && !lookupFontData( "courier new",font ) && !lookupFontData( "courier",font ) ){
 				return 0;
 			}
 		}else{

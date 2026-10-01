@@ -560,8 +560,8 @@ static BBCanvas *tformCanvas( BBCanvas *c,float m[2][2],int x_handle,int y_handl
 		v.x=minx+.5f;
 		for( int x=0;x<iw;++v.x,++x ){
 			vec2 q=vrot(i,v);
-			unsigned rgb=filter ? getPixel( c,q.x+ox,q.y+oy ) : c->getPixel( floor(q.x+ox),floor(q.y+oy) );
-			t->setPixel( x,y,rgb );
+			unsigned rgb=filter ? getPixel( c,q.x+ox,q.y+oy ) : c->getPixelFast( floor(q.x+ox),floor(q.y+oy) );
+			t->setPixelFast( x,y,rgb );
 		}
 	}
 

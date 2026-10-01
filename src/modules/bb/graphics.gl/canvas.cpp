@@ -480,9 +480,9 @@ bool GLCanvas::lock(){
 
 void GLCanvas::setPixel( int x,int y,unsigned argb ){
 	// RTEX( "GLCanvas::setPixel not implemented" );
-	lock();
+	bool locked=lock();
 	setPixelFast( x,y,argb );
-	unlock();
+	if( locked ) unlock();
 }
 
 #define UC(c) static_cast<unsigned char>(c)
