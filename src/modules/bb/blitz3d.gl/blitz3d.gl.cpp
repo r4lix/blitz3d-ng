@@ -1,4 +1,7 @@
 
+#include <set>
+#include <string>
+#include <cstdio>
 #include "../stdutil/stdutil.h"
 #include <bb/graphics.gl/graphics.gl.h>
 #include <bb/system/system.h>
@@ -523,6 +526,15 @@ public:
 
 				us.texs_used++;
 			}
+		}
+
+		if( getenv( "BB_TRACE_DRAWS" ) ){
+			// debug aid: print each distinct layer configuration once
+			static std::set<std::string> seen;
+			char key[256];
+			int n=snprintf( key,sizeof(key),"layers=%d fullbright=%d vcolor=%d alphatest=%d blend=%d color=%.2f,%.2f,%.2f a=%.2f |",us.texs_used,(int)us.fullbright,(int)us.use_vertex_color,(int)us.alpha_test,(int)blend,us.brush_color[0],us.brush_color[1],us.brush_color[2],us.brush_color[3] );
+			for( int i=0;i<us.texs_used&&n<(int)sizeof(key)-40;i++ ) n+=snprintf( key+n,sizeof(key)-n," [blend=%d coords=%d]",(int)us.texs[i].blend,(int)us.texs[i].flags );
+			if( seen.insert( key ).second ) fprintf( stderr,"[draw] %s\n",key );
 		}
 
 		switch( blend ){

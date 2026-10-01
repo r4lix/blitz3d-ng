@@ -161,7 +161,9 @@ void main() {
 
   switch( RS.FogMode ){
   case FOG_NONE: break;
-  case FOG_LINEAR: bbVertex_FogFactor=fogFactorLinear( length( gl_Position.xyz ),RS.FogRange.x,RS.FogRange.y );break;
+  // fixed-function style fog: linear in eye-space depth (not clip space, which the
+  // projection stretches differently on each axis)
+  case FOG_LINEAR: bbVertex_FogFactor=fogFactorLinear( abs( (bbModelViewMatrix * vec4(bbPosition, 1.0)).z ),RS.FogRange.x,RS.FogRange.y );break;
   }
 }
 #endif
@@ -196,6 +198,8 @@ vec4 Blend( vec4 t0,vec4 t1,int i ){
   case BLEND_ALPHA:    return mix(t0, t1, t1.a);
   case BLEND_MULTIPLY: return t0*t1;
   case BLEND_ADD:      return t0+t1;
+  case BLEND_MULTIPLY2: return vec4( t0.rgb*t1.rgb*2.0,t0.a*t1.a );
+  case BLEND_DOT3:     return t0; // bump mapping is not implemented
   }
 }
 
