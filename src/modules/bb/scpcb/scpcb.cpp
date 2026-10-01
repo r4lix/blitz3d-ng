@@ -57,6 +57,8 @@ bb_int_t BBCALL bbFSOUND_Stream_Play( bb_int_t chan,bb_int_t stream ){
 	if( it==streams.end() || !gx_audio ) return -1;
 	BBChannel *c=gx_audio->playFile( it->second.file,false );
 	if( !c ) return -1;
+	// FSOUND_LOOP_NORMAL (2) makes a stream repeat; music is opened this way
+	c->setLoop( (it->second.mode&2)!=0 );
 	int id=next_channel++;
 	channels[id]=c;
 	return id;

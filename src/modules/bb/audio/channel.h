@@ -14,6 +14,8 @@ public:
 	virtual void setVolume( float volume )=0;
 	virtual void setPan( float pan )=0;
 	virtual void set3d( const float pos[3],const float vel[3] )=0;
+	// looping is optional: backends that cannot loop a channel ignore it
+	virtual void setLoop( bool loop ){}
 
 	virtual bool isPlaying()=0;
 	virtual float getDuration()=0;
