@@ -188,6 +188,8 @@ bool SDLRuntime::idle(){
 }
 
 void *SDLRuntime::window(){
+	// audio drivers ask for the window while the runtime is still starting up
+	if( !bbContextDriver ) return 0;
 	auto graphics=(SDLGraphics*)((SDLContextDriver*)bbContextDriver)->getGraphics();
 	if( !graphics ) return 0;
 #ifdef WIN32
@@ -201,6 +203,7 @@ void *SDLRuntime::window(){
 }
 
 void SDLRuntime::moveMouse( int x,int y ){
+	if( !bbContextDriver ) return;
 	auto graphics=(SDLGraphics*)((SDLContextDriver*)bbContextDriver)->getGraphics();
 	graphics->moveMouse( x,y );
 }

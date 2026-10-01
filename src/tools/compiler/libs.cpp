@@ -41,6 +41,7 @@ static Type *_typeof( int c ){
 	case '%':return Type::int_type;
 	case '#':return Type::float_type;
 	case '$':return Type::string_type;
+	case '*':return Type::null_type;
 	}
 	return Type::void_type;
 }

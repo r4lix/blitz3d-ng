@@ -22,6 +22,7 @@ protected:
 	int handle_x,handle_y;
 	int mask;
 	float color[3];
+	unsigned cls_argb;
 	BBPixmap *pixmap;
 	bool dirty;
 

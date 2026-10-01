@@ -98,6 +98,8 @@ void initArrays( int size,GLuint* buffer,GLuint *array ){
 
 GLCanvas::GLCanvas( ContextResources *res,int w,int h,int f ):res(res),pixmap(0),mask(0),width(w),height(h),pixels(0),handle_x(0),handle_y(0),texture(0),framebuffer(0),mode(0),depthbuffer(0),cube_mode(0){
 	flags=f;
+	color[0]=color[1]=color[2]=1.0f;
+	cls_argb=0xff000000;
 
 	setOrigin( 0,0 );
 	setHandle( 0,0 );
@@ -145,6 +147,7 @@ void GLCanvas::setColor( unsigned argb ){
 }
 
 void GLCanvas::setClsColor( unsigned argb ){
+	cls_argb=argb;
 	int r = (argb >> 16) & 255;
 	int g = (argb >> 8) & 255;
 	int b = argb & 255;
@@ -484,8 +487,12 @@ void GLCanvas::setPixel( int x,int y,unsigned argb ){
 
 #define UC(c) static_cast<unsigned char>(c)
 
+// While locked, `pixels` holds the framebuffer as read by glReadPixels:
+// BGRA bytes, bottom row first.
 void GLCanvas::setPixelFast( int x,int y,unsigned argb ){
-	// RTEX( "GLCanvas::setPixelFast not implemented" );
+	if( !pixels || x<0 || y<0 || x>=width || y>=height ) return;
+	unsigned char *p=pixels+((size_t)(height-1-y)*width+x)*4;
+	p[0]=argb&255;p[1]=(argb>>8)&255;p[2]=(argb>>16)&255;p[3]=(argb>>24)&255;
 }
 
 void GLCanvas::copyPixel( int x,int y,BBCanvas *src,int src_x,int src_y ){
@@ -497,13 +504,16 @@ void GLCanvas::copyPixelFast( int x,int y,BBCanvas *src,int src_x,int src_y ){
 }
 
 unsigned GLCanvas::getPixel( int x,int y ){
-	// RTEX( "GLCanvas::getPixel not implemented" );
-	return 0;
+	bool locked=lock();
+	unsigned argb=getPixelFast( x,y );
+	if( locked ) unlock();
+	return argb;
 }
 
 unsigned GLCanvas::getPixelFast( int x,int y ){
-	// RTEX( "GLCanvas::getPixelFast not implemented" );
-	return 0;
+	if( !pixels || x<0 || y<0 || x>=width || y>=height ) return 0;
+	const unsigned char *p=pixels+((size_t)(height-1-y)*width+x)*4;
+	return (p[3]<<24)|(p[2]<<16)|(p[1]<<8)|p[0];
 }
 
 void GLCanvas::unlock(){
@@ -560,13 +570,12 @@ unsigned GLCanvas::getMask()const{
 }
 
 unsigned GLCanvas::getColor()const{
-	RTEX( "GLCanvas::getColor not implemented" );
-	return 0;
+	unsigned r=(unsigned)(color[0]*255.0f+0.5f),g=(unsigned)(color[1]*255.0f+0.5f),b=(unsigned)(color[2]*255.0f+0.5f);
+	return 0xff000000|(r<<16)|(g<<8)|b;
 }
 
 unsigned GLCanvas::getClsColor()const{
-	RTEX( "GLCanvas::getClsColor not implemented" );
-	return 0;
+	return cls_argb;
 }
 
 void GLCanvas::set(){
@@ -655,7 +664,12 @@ void GLCanvas::uploadData(){
 	GL( glActiveTexture( GL_TEXTURE0 ) );
 	GL( glBindTexture( target,texture ) );
 	for( int i=0;i<(target==GL_TEXTURE_2D?1:6);i++ ){
+#ifdef BB_DESKTOP
+		// locked pixels come from glReadPixels as BGRA
+		GL( glTexImage2D( target==GL_TEXTURE_2D?target:_cube_order[i],0,GL_RGBA,width,height,0,pixels?GL_BGRA:GL_RGBA,GL_UNSIGNED_BYTE,data ) );
+#else
 		GL( glTexImage2D( target==GL_TEXTURE_2D?target:_cube_order[i],0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,data ) );
+#endif
 	}
 	GL( glGenerateMipmap( target ) );
 

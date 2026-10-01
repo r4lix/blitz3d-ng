@@ -447,7 +447,23 @@ void BBCALL bbVWait( bb_int_t n ){
 	if( !bbRuntimeIdle() ) RTEX( 0 );
 }
 
+static bool saveCanvas( BBCanvas *c,const std::string &f );
+
+// Debug aid: BB_SCREENSHOT_FRAMES="30,300" BB_SCREENSHOT_PATH="shot" writes
+// shot_<frame>.bmp from the current buffer just before those frames are shown.
+static void debugScreenshot(){
+	static int frame=0;
+	++frame;
+	const char *frames=getenv( "BB_SCREENSHOT_FRAMES" ),*path=getenv( "BB_SCREENSHOT_PATH" );
+	if( !frames || !path || !gx_canvas ) return;
+	std::string list=std::string( "," )+frames+",";
+	std::string key=std::string( "," )+std::to_string( frame )+",";
+	if( list.find( key )==std::string::npos ) return;
+	saveCanvas( gx_canvas,std::string( path )+"_"+std::to_string( frame )+".bmp" );
+}
+
 void BBCALL bbFlip( bb_int_t vwait ){
+	debugScreenshot();
 	bbContextDriver->flip( vwait ? true : false );
 	if( !bbRuntimeIdle() ) RTEX( 0 );
 }
