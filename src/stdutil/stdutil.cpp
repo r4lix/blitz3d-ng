@@ -377,6 +377,71 @@ std::string filenamefile( const std::string &t ){
 }
 #endif
 
+#ifndef WINDOWS
+#include <sys/stat.h>
+#include <dirent.h>
+#include <strings.h>
+#include <map>
+#include <mutex>
+
+// Blitz programs were written for Windows, where names are case-insensitive. Resolve each path
+// component against the directory contents when the exact spelling does not exist.
+// Case-insensitive file systems (FAT, a host folder under an emulator) accept any spelling for
+// open() but do not always behave identically for each one, so always use the on-disk spelling.
+static std::string resolvecase( const std::string &s ){
+	if( s.empty() ) return s;
+
+	static std::mutex lock;
+	static std::map<std::string,std::string> cache;
+	static std::map<std::string,std::map<std::string,std::string> > dirs; // dir -> lowercase name -> real name
+	std::lock_guard<std::mutex> g( lock );
+
+	auto hit=cache.find( s );
+	if( hit!=cache.end() ) return hit->second;
+
+	size_t pos=0;
+	std::string cur;
+	size_t colon=s.find( ':' ),slash=s.find( '/' );
+	if( colon!=std::string::npos && slash==colon+1 ){ cur=s.substr( 0,slash+1 );pos=slash+1; }
+	else if( s[0]=='/' ){ cur="/";pos=1; }
+
+	while( pos<s.size() ){
+		size_t end=s.find( '/',pos );
+		std::string comp=s.substr( pos,end==std::string::npos ? std::string::npos : end-pos );
+		if( !comp.empty() && comp!="." && comp!=".." ){
+			auto d=dirs.find( cur );
+			if( d==dirs.end() ){
+				std::map<std::string,std::string> names;
+				if( DIR *dp=opendir( cur.empty() ? "." : cur.c_str() ) ){
+					while( struct dirent *e=readdir( dp ) ){
+						std::string n=e->d_name,l=n;
+						for( size_t i=0;i<l.size();++i ) l[i]=tolower( (unsigned char)l[i] );
+						names[l]=n;
+					}
+					closedir( dp );
+				}
+				d=dirs.insert( std::make_pair( cur,names ) ).first;
+			}
+			std::string l=comp;
+			for( size_t i=0;i<l.size();++i ) l[i]=tolower( (unsigned char)l[i] );
+			auto f=d->second.find( l );
+			if( f==d->second.end() ){ // not there (yet): keep the rest as written, e.g. a file about to be created
+				cur+=s.substr( pos );
+				cache[s]=cur;
+				return cur;
+			}
+			comp=f->second;
+		}
+		cur+=comp;
+		if( end==std::string::npos ) break;
+		cur+='/';
+		pos=end+1;
+	}
+	cache[s]=cur;
+	return cur;
+}
+#endif
+
 std::string canonicalpath( const std::string &t ){
 	std::string s=t;
 #ifdef WINDOWS
@@ -384,7 +449,7 @@ std::string canonicalpath( const std::string &t ){
 	return lower(s);
 #else
 	replace( s.begin(),s.end(),'\\','/' );
-	return s;
+	return resolvecase( s );
 #endif
 }
 
