@@ -136,7 +136,17 @@ BBGraphics *SDLContextDriver::openGraphics( int w,int h,int d,int driver,int fla
 		inited=true;
 	}
 
-	SDL_Window* wnd=SDL_CreateWindow( bbApp().title.c_str(),SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,1,1,SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI );
+#ifdef BB_DESKTOP
+	int initW=1,initH=1;
+	Uint32 initFlags=SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI;
+#else
+	// on consoles/mobile the window is the whole display; a 1x1 window stays 1x1 there
+	SDL_DisplayMode dm0;
+	int initW=1280,initH=720;
+	if( SDL_GetDesktopDisplayMode( 0,&dm0 )==0 ){ initW=dm0.w;initH=dm0.h; }
+	Uint32 initFlags=SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_FULLSCREEN;
+#endif
+	SDL_Window* wnd=SDL_CreateWindow( bbApp().title.c_str(),SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,initW,initH,initFlags );
 	if( wnd==NULL ){
 		LOGD( "%s","failed to create window" );
 		return 0;
@@ -198,12 +208,17 @@ BBGraphics *SDLContextDriver::openGraphics( int w,int h,int d,int driver,int fla
 		SDL_SetWindowFullscreen( wnd,SDL_WINDOW_FULLSCREEN );
 	}
 
+	SDL_GetWindowSize( wnd,&screen_w,&screen_h );
+	SDL_GL_GetDrawableSize( wnd,&drawableW,&drawableH );
+	LOGD( "GL window after fullscreen: %ix%i drawable %ix%i",screen_w,screen_h,drawableW,drawableH );
+
 	graphics=d_new SDLGraphics( wnd,context );
 	if( graphics->init() ){
 		SDL_RaiseWindow( wnd );
 		return graphics;
 	}
-	delete graphics;
+	LOGD( "%s","graphics init failed" );
+	delete graphics;graphics=0;
 	return 0;
 }
 
