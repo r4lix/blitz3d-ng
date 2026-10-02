@@ -181,7 +181,10 @@ struct PadEmulation{
 			a=(a-dead)/(1.0f-dead);
 			return (v<0 ? -1.0f : 1.0f)*a*a;
 		};
-		const float speed=1400.0f; // pixels per second at full deflection
+		// pixels per second at full deflection (BB_PAD_SPEED overrides; the game's own mouse
+		// sensitivity setting scales this further while looking around)
+		static float speed=0;
+		if( speed==0 ){ const char *e=getenv( "BB_PAD_SPEED" );speed=e ? (float)atof( e ) : 650.0f;if( speed<50 ) speed=650.0f; }
 		float dx=shape( rx )*speed*dt+carryX,dy=shape( ry )*speed*dt+carryY;
 		int ix=(int)dx,iy=(int)dy;
 		carryX=dx-ix;carryY=dy-iy;

@@ -16,6 +16,10 @@ FSOUND_SetPan%( channel%,pan% ):"bbFSOUND_SetPan"
 -- debug aid (not part of the original game)
 RT_Trace( msg$ ):"bbRT_Trace"
 
+-- on-screen keyboard (Switch); RT_HasPrompt% is 0 where a real keyboard exists
+RT_HasPrompt%():"bbRT_HasPrompt"
+RT_TextPrompt$( title$,initial$ ):"bbRT_TextPrompt"
+
 -- cpuid.dll
 CPUid$():"bbCPUid"
 CPUextendedId$():"bbCPUextendedId"

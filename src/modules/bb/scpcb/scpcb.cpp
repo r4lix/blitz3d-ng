@@ -5,6 +5,9 @@
 #include <bb/bank/bank.h>
 #include "../stdutil/stdutil.h"
 
+#ifdef BB_NX
+#include <switch.h>
+#endif
 #include <map>
 #include <string>
 #include <cstdio>
@@ -100,6 +103,40 @@ void BBCALL bbRT_Trace( BBStr *msg ){
 	fprintf( stderr,"[t] %s\n",msg->c_str() );
 	fflush( stderr );
 	delete msg;
+}
+
+// ---------------------------------------------------------------------------
+// On-screen keyboard (Switch software keyboard applet). Programs that have no keyboard
+// call RT_TextPrompt$ instead of reading keys; elsewhere RT_HasPrompt() is 0 and typing works
+// as usual.
+// ---------------------------------------------------------------------------
+bb_int_t BBCALL bbRT_HasPrompt(){
+#ifdef BB_NX
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+BBStr * BBCALL bbRT_TextPrompt( BBStr *title,BBStr *initial ){
+	std::string result=*initial;
+#ifdef BB_NX
+	SwkbdConfig kbd;
+	Result rc=swkbdCreate( &kbd,0 );
+	if( R_SUCCEEDED( rc ) ){
+		char out[128]={ 0 };
+		swkbdConfigMakePresetDefault( &kbd );
+		swkbdConfigSetHeaderText( &kbd,title->c_str() );
+		swkbdConfigSetInitialText( &kbd,initial->c_str() );
+		swkbdConfigSetStringLenMax( &kbd,31 );
+		rc=swkbdShow( &kbd,out,sizeof(out) );
+		swkbdClose( &kbd );
+		if( R_SUCCEEDED( rc ) ) result=out;
+	}
+	fprintf( stderr,"[keyboard] result 0x%x text '%s'\n",(unsigned)rc,result.c_str() );
+#endif
+	delete title;delete initial;
+	return d_new BBStr( result );
 }
 
 // ---------------------------------------------------------------------------

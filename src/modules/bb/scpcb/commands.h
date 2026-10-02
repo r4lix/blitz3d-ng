@@ -29,6 +29,10 @@ bb_int_t BBCALL bbFSOUND_SetPan( bb_int_t channel,bb_int_t pan );
 // debug aid (not part of the original game)
 void BBCALL bbRT_Trace( BBStr *msg );
 
+// on-screen keyboard (Switch)-- RT_HasPrompt% is 0 where a real keyboard exists
+bb_int_t BBCALL bbRT_HasPrompt(  );
+BBStr * BBCALL bbRT_TextPrompt( BBStr *title,BBStr *initial );
+
 // cpuid.dll
 BBStr * BBCALL bbCPUid(  );
 BBStr * BBCALL bbCPUextendedId(  );

@@ -19,6 +19,8 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "%FSOUND_IsPlaying%channel","bbFSOUND_IsPlaying",bbFSOUND_IsPlaying );
 	rtSym( "%FSOUND_SetPan%channel%pan","bbFSOUND_SetPan",bbFSOUND_SetPan );
 	rtSym( "RT_Trace$msg","bbRT_Trace",bbRT_Trace );
+	rtSym( "%RT_HasPrompt","bbRT_HasPrompt",bbRT_HasPrompt );
+	rtSym( "$RT_TextPrompt$title$initial","bbRT_TextPrompt",bbRT_TextPrompt );
 	rtSym( "$CPUid","bbCPUid",bbCPUid );
 	rtSym( "$CPUextendedId","bbCPUextendedId",bbCPUextendedId );
 	rtSym( "$CPUbrand","bbCPUbrand",bbCPUbrand );

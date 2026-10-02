@@ -42,7 +42,7 @@
 
 namespace{
 
-const int kRate=44100;
+const int kRate=48000; // the Switch audio output runs at 48 kHz natively: no resampling by SDL
 const int kChunk=16384; // bytes per decoder read
 
 struct PCM{
@@ -471,7 +471,7 @@ public:
 				want.freq=kRate;
 				want.format=AUDIO_S16SYS;
 				want.channels=2;
-				want.samples=1024;
+				want.samples=2048; // ~43 ms: rides out frame hitches
 				want.callback=callback;
 				want.userdata=this;
 				dev=SDL_OpenAudioDevice( 0,0,&want,&have,0 );
