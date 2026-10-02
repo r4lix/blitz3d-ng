@@ -141,9 +141,8 @@ BBGraphics *SDLContextDriver::openGraphics( int w,int h,int d,int driver,int fla
 	Uint32 initFlags=SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI;
 #else
 	// on consoles/mobile the window is the whole display; a 1x1 window stays 1x1 there
-	SDL_DisplayMode dm0;
-	int initW=1280,initH=720;
-	if( SDL_GetDesktopDisplayMode( 0,&dm0 )==0 ){ initW=dm0.w;initH=dm0.h; }
+	// use the size the program asked for; the system scales the surface to the screen
+	int initW=w>0?w:1280,initH=h>0?h:720;
 	Uint32 initFlags=SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_FULLSCREEN;
 #endif
 	SDL_Window* wnd=SDL_CreateWindow( bbApp().title.c_str(),SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,initW,initH,initFlags );

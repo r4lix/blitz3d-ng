@@ -53,6 +53,29 @@ static void logTerminate(){
 	abort();
 }
 
+// A crash (data abort etc.) is reported to the log: error, registers and a frame-pointer
+// backtrace. Addresses are relative to bbStart so they can be looked up in the ELF's symbols.
+extern "C" void __libnx_exception_handler( ThreadExceptionDump *ctx ){
+	extern int BBCALL bbStart( int,char**,BBMAIN );
+	u64 ref=(u64)(void*)&bbStart;
+	fprintf( stderr,"[crash] error_desc=0x%x pc=0x%llx lr=0x%llx sp=0x%llx fp=0x%llx far=0x%llx esr=0x%x\n",
+		ctx->error_desc,(unsigned long long)ctx->pc.x,(unsigned long long)ctx->lr.x,
+		(unsigned long long)ctx->sp.x,(unsigned long long)ctx->fp.x,(unsigned long long)ctx->far.x,ctx->esr );
+	fprintf( stderr,"[crash] bbStart=0x%llx (subtract from addresses; pc-bbStart=%lld lr-bbStart=%lld)\n",
+		(unsigned long long)ref,(long long)(ctx->pc.x-ref),(long long)(ctx->lr.x-ref) );
+	for( int i=0;i<29;i++ ) fprintf( stderr,"[crash] x%d=0x%llx\n",i,(unsigned long long)ctx->cpu_gprs[i].x );
+	u64 *fp=(u64*)ctx->fp.x;
+	for( int i=0;i<24 && fp && !((u64)fp&7) && (u64)fp>0x1000;i++ ){
+		u64 ret=fp[1];
+		fprintf( stderr,"[crash] frame %d: ret=0x%llx (bbStart%+lld)\n",i,(unsigned long long)ret,(long long)(ret-ref) );
+		u64 *next=(u64*)fp[0];
+		if( next<=fp ) break;
+		fp=next;
+	}
+	fflush( stderr );
+	svcExitProcess();
+}
+
 extern "C"
 int BBCALL bbStart( int argc,char *argv[], BBMAIN bbMain ) {
 	// Programs started from hbmenu are given their own path ("sdmc:/switch/game/game.nro");

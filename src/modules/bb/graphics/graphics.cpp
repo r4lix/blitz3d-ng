@@ -612,6 +612,13 @@ static void debugScreenshot(){
 }
 
 void BBCALL bbFlip( bb_int_t vwait ){
+#ifdef BB_NX
+	{
+		static int flips=0;
+		++flips;
+		if( flips<=5 || flips%300==0 ) fprintf( stderr,"[flip %d]\n",flips );
+	}
+#endif
 	wdFlip();
 	drawSoftCursor();
 	debugScreenshot();
