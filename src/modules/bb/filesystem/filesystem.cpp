@@ -73,6 +73,7 @@ static BBFile *open( BBStr *f,std::ios_base::openmode n ){
 		file_set.insert( f );
 		return f;
 	}
+	fprintf( stderr,"[open failed] '%s'\n",t.c_str() );
 	return 0;
 }
 

@@ -21,6 +21,7 @@ BBStream::~BBStream(){
 }
 
 bb_int_t BBCALL bbEof( BBStream *s ){
+	if( !s ) return 1; // a failed ReadFile returns 0; treat it as an empty stream
 	if( bb_env.debug ) debugStream( s );
 	return s->eof();
 }

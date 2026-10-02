@@ -40,6 +40,8 @@ void createNRO( const std::string &out,const std::string &home,const std::string
 	RUN( "\""+devkitpro+"/tools/bin/nacptool"+exe+"\" --create \""+bundle.appName+"\" \"Unspecified Author\" \"1.0.0\" \""+nacpPath+"\"" );
 	RUN( "\""+devkitpro+"/tools/bin/elf2nro"+exe+"\" \""+elfPath+"\" \""+out+"\" --icon=\""+icon+"\" --nacp=\""+nacpPath+"\" --romfsdir=\""+romDir+"\"" );
 
+	// BB_KEEP_ELF=<path> keeps the linked ELF so crash addresses can be looked up with nm/addr2line
+	if( const char *keep=getenv( "BB_KEEP_ELF" ) ) std::filesystem::copy_file( elfPath,keep,std::filesystem::copy_options::overwrite_existing );
 	remove( elfPath.c_str() );
 	remove( nacpPath.c_str() );
 }
