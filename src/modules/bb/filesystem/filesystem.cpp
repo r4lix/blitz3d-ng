@@ -68,9 +68,50 @@ static inline void debugDir( BBDir *d ){
 	}
 }
 
+#ifdef BB_NX
+// Horizon refuses to open a file for reading while it is open for writing elsewhere, and Blitz
+// programs routinely call OpenFile (read/write) just to read. Open such files read-only and
+// only reopen them read/write on the first write.
+class LazyRWBuf : public std::streambuf{
+	std::streambuf *fb;
+	std::string path;
+	bool writable;
+	bool upgrade(){
+		if( writable ) return true;
+		std::streampos pos=fb->pubseekoff( 0,std::ios_base::cur,std::ios_base::in );
+		std::streambuf *w=gx_filesys->openFile( path,std::ios_base::in|std::ios_base::out );
+		if( !w ) return false;
+		delete fb;
+		fb=w;writable=true;
+		fb->pubseekpos( pos,std::ios_base::in|std::ios_base::out );
+		return true;
+	}
+protected:
+	int_type underflow(){ return fb->sgetc(); }
+	int_type uflow(){ return fb->sbumpc(); }
+	std::streamsize xsgetn( char *s,std::streamsize n ){ return fb->sgetn( s,n ); }
+	std::streamsize showmanyc(){ return fb->in_avail(); }
+	std::streamsize xsputn( const char *s,std::streamsize n ){ return upgrade() ? fb->sputn( s,n ) : 0; }
+	int_type overflow( int_type c ){ return (upgrade() && c!=traits_type::eof()) ? fb->sputc( traits_type::to_char_type( c ) ) : traits_type::eof(); }
+	pos_type seekoff( off_type off,std::ios_base::seekdir dir,std::ios_base::openmode which ){ return fb->pubseekoff( off,dir,which ); }
+	pos_type seekpos( pos_type pos,std::ios_base::openmode which ){ return fb->pubseekpos( pos,which ); }
+	int sync(){ return fb->pubsync(); }
+public:
+	LazyRWBuf( std::streambuf *b,const std::string &p ):fb( b ),path( p ),writable( false ){}
+	~LazyRWBuf(){ delete fb; }
+};
+#endif
+
 static BBFile *open( BBStr *f,std::ios_base::openmode n ){
 	std::string t=canonicalpath( *f );
-	std::streambuf *buf=gx_filesys->openFile( t,n );
+	std::streambuf *buf;
+#ifdef BB_NX
+	if( n==(std::ios_base::in|std::ios_base::out) ){
+		std::streambuf *r=gx_filesys->openFile( t,std::ios_base::in );
+		buf=r ? new LazyRWBuf( r,t ) : 0;
+	}else
+#endif
+	buf=gx_filesys->openFile( t,n );
 	if( buf ){
 		BBFile *f=d_new BBFile( buf );
 		file_set.insert( f );
