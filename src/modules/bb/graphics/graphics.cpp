@@ -615,6 +615,15 @@ static void debugScreenshot(){
 	saveCanvas( gx_canvas,std::string( path )+"_"+std::to_string( frame )+".bmp" );
 }
 
+// debug aid for the overlay menu: save the current back buffer as a BMP
+bool bbSaveBackBuffer( const std::string &path ){
+	BBCanvas *c=gx_graphics ? gx_graphics->getBackCanvas() : 0;
+	return c ? saveCanvas( c,path ) : false;
+}
+
+// set by a runtime that has an in-game overlay menu; called once per game frame before the swap
+void (*bbOverlayHook)()=0;
+
 void BBCALL bbFlip( bb_int_t vwait ){
 #ifdef BB_NX
 	{
@@ -640,6 +649,7 @@ void BBCALL bbFlip( bb_int_t vwait ){
 	wdFlip();
 	drawSoftCursor();
 	debugScreenshot();
+	if( bbOverlayHook ) bbOverlayHook();
 	bbContextDriver->flip( vwait ? true : false );
 	if( !bbRuntimeIdle() ) RTEX( 0 );
 }

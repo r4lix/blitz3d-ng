@@ -1,7 +1,14 @@
 if(TARGET SDL2)
   bb_start_module(runtime.sdl)
-  set(DEPENDS_ON bb.runtime bb.input bb.pixmap bb.graphics.sdl bb.blitz3d.gl bb.timer)
-  set(SOURCES runtime.sdl.cpp runtime.sdl.h)
+  set(DEPENDS_ON bb.runtime bb.input bb.pixmap bb.graphics.sdl bb.blitz3d.gl bb.timer bb.audio bb.system)
+  set(SOURCES runtime.sdl.cpp runtime.sdl.h overlay.cpp overlay.h
+    imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/imgui_impl_opengl3.cpp)
+  # Dear ImGui (and its GL loader) must not share a translation unit with GLEW
+  set_source_files_properties(imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/imgui_impl_opengl3.cpp
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+  if(BB_NX)
+    set_source_files_properties(imgui/imgui_impl_opengl3.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_OPENGL_ES3)
+  endif()
 
   set(LIBS SDL2)
   if(BB_MOBILE)

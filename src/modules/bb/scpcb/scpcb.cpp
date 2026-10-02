@@ -110,6 +110,18 @@ void BBCALL bbRT_Trace( BBStr *msg ){
 // call RT_TextPrompt$ instead of reading keys; elsewhere RT_HasPrompt() is 0 and typing works
 // as usual.
 // ---------------------------------------------------------------------------
+bb_float_t BBCALL bbRT_SettingF( BBStr *key,bb_float_t def ){
+	float v=bbSettingFloat( *key,(float)def );
+	delete key;
+	return v;
+}
+
+bb_int_t BBCALL bbRT_SettingI( BBStr *key,bb_int_t def ){
+	int v=bbSettingInt( *key,(int)def );
+	delete key;
+	return v;
+}
+
 bb_int_t BBCALL bbRT_HasPrompt(){
 #ifdef BB_NX
 	return 1;

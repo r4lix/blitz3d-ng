@@ -534,3 +534,61 @@ HBITMAP ScaleBitmap( HBITMAP bmp,int width,int height ){
 // 	::SelectObject( dest.m_hDC, old_dest );
 // 	return result;
 // }
+
+// ---- port settings ----------------------------------------------------------------
+#include <map>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+namespace{
+std::map<std::string,std::string> &settingsMap(){
+	static std::map<std::string,std::string> m;
+	static bool loaded=false;
+	if( !loaded ){
+		loaded=true;
+		if( FILE *f=fopen( "switch_settings.ini","r" ) ){
+			char line[512];
+			while( fgets( line,sizeof(line),f ) ){
+				char *eq=strchr( line,'=' );
+				if( !eq || line[0]=='#' ) continue;
+				*eq=0;
+				std::string v=eq+1;
+				while( !v.empty() && (v.back()=='\n' || v.back()=='\r' || v.back()==' ') ) v.pop_back();
+				m[line]=v;
+			}
+			fclose( f );
+		}
+	}
+	return m;
+}
+}
+
+std::string bbSetting( const std::string &key,const std::string &def ){
+	auto &m=settingsMap();
+	auto it=m.find( key );
+	return it==m.end() ? def : it->second;
+}
+
+int bbSettingInt( const std::string &key,int def ){
+	auto &m=settingsMap();
+	auto it=m.find( key );
+	return it==m.end() ? def : atoi( it->second.c_str() );
+}
+
+float bbSettingFloat( const std::string &key,float def ){
+	auto &m=settingsMap();
+	auto it=m.find( key );
+	return it==m.end() ? def : (float)atof( it->second.c_str() );
+}
+
+void bbSettingSet( const std::string &key,const std::string &value ){
+	settingsMap()[key]=value;
+}
+
+void bbSettingsSave(){
+	if( FILE *f=fopen( "switch_settings.ini","w" ) ){
+		for( auto &kv:settingsMap() ) fprintf( f,"%s=%s\n",kv.first.c_str(),kv.second.c_str() );
+		fclose( f );
+	}
+}

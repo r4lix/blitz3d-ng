@@ -84,16 +84,20 @@ void BBCALL bbDelay( bb_int_t ms ){
 	}
 }
 
+// milliseconds the program spent frozen behind the overlay menu: not counted, so the game
+// does not see one enormous frame when it resumes
+int bbPausedMs=0;
+
 bb_int_t BBCALL bbMilliSecs(){
 #ifdef BB_WINDOWS
-	return timeGetTime();
+	return timeGetTime()-bbPausedMs;
 #else
 	int t;
 	struct timeval tv;
 	gettimeofday(&tv,0);
 	t=tv.tv_sec*1000;
 	t+=tv.tv_usec/1000;
-	return t-base_time;
+	return t-base_time-bbPausedMs;
 #endif
 }
 

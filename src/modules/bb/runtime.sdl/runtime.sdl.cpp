@@ -7,6 +7,7 @@
 #include <cstring>
 #include "../stdutil/stdutil.h"
 #include "runtime.sdl.h"
+#include "overlay.h"
 #include <bb/pixmap/pixmap.h>
 #include <bb/event/event.h>
 #include <bb/system/system.h>
@@ -80,7 +81,10 @@ SDLRuntime::~SDLRuntime(){
 	SDL_Quit();
 }
 
+extern void (*bbOverlayHook)();
+
 void SDLRuntime::afterCreate(){
+	bbOverlayHook=overlayFrameHook;
 	SDL_InitSubSystem( SDL_INIT_JOYSTICK );
 
 	gx_input=d_new SDLInputDriver();
@@ -149,6 +153,8 @@ static void injectEvents(){
 		}else if( i.kind=="move" ){
 			e.type=SDL_MOUSEMOTION;e.motion.x=i.a;e.motion.y=i.b;
 			SDL_PushEvent( &e );
+		}else if( i.kind=="menu" ){
+			overlayRequested=true;
 		}else if( i.kind=="click" ){
 			e.type=SDL_MOUSEBUTTONDOWN;e.button.button=i.a==2?SDL_BUTTON_RIGHT:i.a==3?SDL_BUTTON_MIDDLE:SDL_BUTTON_LEFT;e.button.state=SDL_PRESSED;
 			SDL_PushEvent( &e );

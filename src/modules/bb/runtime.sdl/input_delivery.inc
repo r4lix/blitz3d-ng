@@ -5,6 +5,7 @@
 extern int bbPointerX,bbPointerY; // graphics: last pointer position the engine was told about
 
 static void deliverKey( int code,bool down,bool synthetic ){
+	if( overlayActive ) return; // the overlay menu owns the input
 	if( code<0 || code>=MAX_SDL_SCANCODES ) return;
 
 	int key=SDL_SCANCODE_MAP[code];
@@ -47,11 +48,13 @@ static void deliverKey( int code,bool down,bool synthetic ){
 }
 
 static void deliverMouseButton( int button,bool down ){
+	if( overlayActive ) return;
 	BBEvent ev( down ? BBEVENT_MOUSEDOWN : BBEVENT_MOUSEUP,button );
 	bbOnEvent.run( &ev );
 }
 
 static void deliverMouseMove( int x,int y ){
+	if( overlayActive ) return;
 	bbPointerX=x;bbPointerY=y;
 	BBEvent ev( BBEVENT_MOUSEMOVE,0,x,y );
 	bbOnEvent.run( &ev );
@@ -71,6 +74,21 @@ struct PadEmulation{
 	bool buttons[4]={ false };
 	float px=0,py=0,carryX=0,carryY=0;
 	Uint32 last=0;
+
+	// overlay menu trigger: hold "-" (a short press is still the quick save) or hold L3+R3
+	bool minusHeld=false,minusConsumed=false;
+	Uint32 minusStart=0,chordStart=0;
+	int f5Pulse=0;
+
+	void releaseAll(){
+		for( int sc=0;sc<SDL_NUM_SCANCODES;sc++ ) setKey( sc,false );
+		for( int b=1;b<4;b++ ) setButton( b,false );
+	}
+
+	void fillSnapshot(){
+		for( int b=0;b<SDL_CONTROLLER_BUTTON_MAX;b++ ) overlayPad.btn[b]=pad && SDL_GameControllerGetButton( pad,(SDL_GameControllerButton)b )!=0;
+		for( int a=0;a<SDL_CONTROLLER_AXIS_MAX;a++ ) overlayPad.axis[a]=pad ? SDL_GameControllerGetAxis( pad,(SDL_GameControllerAxis)a )/32767.0f : 0.0f;
+	}
 
 	void open(){
 		for( int i=0;i<SDL_NumJoysticks();i++ ){
@@ -125,10 +143,11 @@ struct PadEmulation{
 			pad=0;
 		}
 		if( !pad ) open();
+		fillSnapshot();
+		if( overlayActive ) return; // the menu reads the snapshot; the game gets nothing
 		if( !pad ){
 			// nothing connected: release anything we were holding
-			for( int sc=0;sc<SDL_NUM_SCANCODES;sc++ ) setKey( sc,false );
-			for( int b=1;b<4;b++ ) setButton( b,false );
+			releaseAll();
 			return;
 		}
 
@@ -154,7 +173,25 @@ struct PadEmulation{
 		if( btn( SDL_CONTROLLER_BUTTON_Y ) || btn( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) ) want[SDL_SCANCODE_SPACE]=true; // blink
 		if( btn( SDL_CONTROLLER_BUTTON_LEFTSHOULDER ) || btn( SDL_CONTROLLER_BUTTON_LEFTSTICK ) ) want[SDL_SCANCODE_LSHIFT]=true; // sprint
 		if( btn( SDL_CONTROLLER_BUTTON_START ) ) want[SDL_SCANCODE_ESCAPE]=true;
-		if( btn( SDL_CONTROLLER_BUTTON_BACK ) ) want[SDL_SCANCODE_F5]=true;   // quick save
+		// "-": quick save on a short press; held it opens the overlay menu (or L3+R3 does)
+		const Uint32 nowMs=SDL_GetTicks();
+		const int trigger=bbSettingInt( "menu_trigger",0 );
+		if( trigger==0 ){
+			if( btn( SDL_CONTROLLER_BUTTON_BACK ) ){
+				if( !minusHeld ){ minusHeld=true;minusStart=nowMs;minusConsumed=false; }
+				else if( !minusConsumed && nowMs-minusStart>=1200 ){ minusConsumed=true;overlayRequested=true; }
+			}else{
+				if( minusHeld && !minusConsumed ) f5Pulse=3;
+				minusHeld=false;
+			}
+			if( f5Pulse>0 ){ want[SDL_SCANCODE_F5]=true;f5Pulse--; }
+		}else{
+			if( btn( SDL_CONTROLLER_BUTTON_BACK ) ) want[SDL_SCANCODE_F5]=true;
+			if( btn( SDL_CONTROLLER_BUTTON_LEFTSTICK ) && btn( SDL_CONTROLLER_BUTTON_RIGHTSTICK ) ){
+				if( !chordStart ) chordStart=nowMs;
+				else if( nowMs-chordStart>=600 ){ chordStart=0;overlayRequested=true; }
+			}else chordStart=0;
+		}
 		if( btn( SDL_CONTROLLER_BUTTON_DPAD_UP ) ) want[SDL_SCANCODE_UP]=true;
 		if( btn( SDL_CONTROLLER_BUTTON_DPAD_DOWN ) ) want[SDL_SCANCODE_DOWN]=true;
 		if( btn( SDL_CONTROLLER_BUTTON_DPAD_LEFT ) ) want[SDL_SCANCODE_LEFT]=true;
@@ -174,17 +211,18 @@ struct PadEmulation{
 		if( dt>0.1f ) dt=0.1f;
 
 		float rx=axis( SDL_CONTROLLER_AXIS_RIGHTX ),ry=axis( SDL_CONTROLLER_AXIS_RIGHTY );
-		auto shape=[]( float v ){
-			const float dead=0.18f;
+		const float deadzone=bbSettingFloat( "pad_deadzone",0.18f ),curve=bbSettingFloat( "pad_curve",2.0f );
+		auto shape=[deadzone,curve]( float v ){
 			float a=fabsf( v );
-			if( a<dead ) return 0.0f;
-			a=(a-dead)/(1.0f-dead);
-			return (v<0 ? -1.0f : 1.0f)*a*a;
+			if( a<deadzone ) return 0.0f;
+			a=(a-deadzone)/(1.0f-deadzone);
+			return (v<0 ? -1.0f : 1.0f)*powf( a,curve );
 		};
-		// pixels per second at full deflection (BB_PAD_SPEED overrides; the game's own mouse
-		// sensitivity setting scales this further while looking around)
-		static float speed=0;
-		if( speed==0 ){ const char *e=getenv( "BB_PAD_SPEED" );speed=e ? (float)atof( e ) : 650.0f;if( speed<50 ) speed=650.0f; }
+		// pixels per second at full deflection (overlay menu: "Pointer / look speed"; BB_PAD_SPEED
+		// overrides; the game's own mouse sensitivity setting scales it further while looking)
+		float speed=bbSettingFloat( "pad_speed",650.0f );
+		if( const char *e=getenv( "BB_PAD_SPEED" ) ) speed=(float)atof( e );
+		if( speed<50 ) speed=650.0f;
 		float dx=shape( rx )*speed*dt+carryX,dy=shape( ry )*speed*dt+carryY;
 		int ix=(int)dx,iy=(int)dy;
 		carryX=dx-ix;carryY=dy-iy;
@@ -204,6 +242,8 @@ PadEmulation padEmulation;
 
 }
 
+void overlayReleaseGameInput(){ padEmulation.releaseAll(); }
+
 bool SDLRuntime::idle(){
 	injectEvents();
 
@@ -211,9 +251,32 @@ bool SDLRuntime::idle(){
 	while( SDL_PollEvent(&event) ){
 		if( event.type == SDL_QUIT ){
 			RTEX( 0 );
+		}else if( overlayActive ){
+			// the overlay menu owns the input: touch/mouse go to it, keys act like pad presses
+			if( event.type==SDL_MOUSEMOTION ){
+				overlayMouse( event.motion.x,event.motion.y,0,false,true );
+			}else if( event.type==SDL_MOUSEBUTTONDOWN||event.type==SDL_MOUSEBUTTONUP ){
+				int button=event.button.button==SDL_BUTTON_LEFT ? 1 : event.button.button==SDL_BUTTON_RIGHT ? 2 : 3;
+				overlayMouse( event.button.x,event.button.y,button,event.type==SDL_MOUSEBUTTONDOWN,false );
+			}else if( event.type==SDL_KEYDOWN && event.key.repeat==0 ){
+				switch( event.key.keysym.scancode ){
+				case SDL_SCANCODE_UP:overlayPad.pulse[SDL_CONTROLLER_BUTTON_DPAD_UP]=true;break;
+				case SDL_SCANCODE_DOWN:overlayPad.pulse[SDL_CONTROLLER_BUTTON_DPAD_DOWN]=true;break;
+				case SDL_SCANCODE_LEFT:overlayPad.pulse[SDL_CONTROLLER_BUTTON_DPAD_LEFT]=true;break;
+				case SDL_SCANCODE_RIGHT:overlayPad.pulse[SDL_CONTROLLER_BUTTON_DPAD_RIGHT]=true;break;
+				case SDL_SCANCODE_RETURN:overlayPad.pulse[SDL_CONTROLLER_BUTTON_A]=true;break;
+				case SDL_SCANCODE_ESCAPE:overlayPad.pulse[SDL_CONTROLLER_BUTTON_B]=true;break;
+				case SDL_SCANCODE_Q:overlayPad.pulse[SDL_CONTROLLER_BUTTON_LEFTSHOULDER]=true;break;
+				case SDL_SCANCODE_E:overlayPad.pulse[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER]=true;break;
+				case SDL_SCANCODE_F10:overlayPad.pulse[SDL_CONTROLLER_BUTTON_START]=true;break;
+				default:break;
+				}
+			}
 		}else if( event.type==SDL_WINDOWEVENT ){
 			if( event.window.event==SDL_WINDOWEVENT_RESIZED ) {
 			}
+		}else if( event.type==SDL_KEYDOWN && event.key.keysym.scancode==SDL_SCANCODE_F10 && event.key.repeat==0 ){
+			overlayRequested=true; // keyboards (PC) open the menu with F10
 		}else if( event.type==SDL_MOUSEMOTION ){
 			padEmulation.pointerMoved( event.motion.x,event.motion.y );
 			deliverMouseMove( event.motion.x,event.motion.y );

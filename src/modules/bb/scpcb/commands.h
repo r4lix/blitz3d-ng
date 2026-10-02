@@ -33,6 +33,10 @@ void BBCALL bbRT_Trace( BBStr *msg );
 bb_int_t BBCALL bbRT_HasPrompt(  );
 BBStr * BBCALL bbRT_TextPrompt( BBStr *title,BBStr *initial );
 
+// port settings (switch_settings.ini, edited by the overlay menu)
+bb_float_t BBCALL bbRT_SettingF( BBStr *key,bb_float_t def );
+bb_int_t BBCALL bbRT_SettingI( BBStr *key,bb_int_t def );
+
 // cpuid.dll
 BBStr * BBCALL bbCPUid(  );
 BBStr * BBCALL bbCPUextendedId(  );

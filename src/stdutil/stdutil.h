@@ -58,6 +58,14 @@ std::string filenamepath( const std::string &t );
 std::string filenamefile( const std::string &t );
 std::string canonicalpath( const std::string &t );
 
+// Port settings (switch_settings.ini next to the program, KEY=VALUE per line), shared by the
+// runtime, the overlay menu and the game's RT_Setting* builtins. Values are loaded on first use.
+std::string bbSetting( const std::string &key,const std::string &def );
+int bbSettingInt( const std::string &key,int def );
+float bbSettingFloat( const std::string &key,float def );
+void bbSettingSet( const std::string &key,const std::string &value );
+void bbSettingsSave();
+
 //lazy version of auto_ptr
 template<class T>
 class a_ptr{

@@ -21,6 +21,8 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "RT_Trace$msg","bbRT_Trace",bbRT_Trace );
 	rtSym( "%RT_HasPrompt","bbRT_HasPrompt",bbRT_HasPrompt );
 	rtSym( "$RT_TextPrompt$title$initial","bbRT_TextPrompt",bbRT_TextPrompt );
+	rtSym( "#RT_SettingF$key#def","bbRT_SettingF",bbRT_SettingF );
+	rtSym( "%RT_SettingI$key%def","bbRT_SettingI",bbRT_SettingI );
 	rtSym( "$CPUid","bbCPUid",bbCPUid );
 	rtSym( "$CPUextendedId","bbCPUextendedId",bbCPUextendedId );
 	rtSym( "$CPUbrand","bbCPUbrand",bbCPUbrand );

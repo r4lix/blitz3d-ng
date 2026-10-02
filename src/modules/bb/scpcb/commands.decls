@@ -20,6 +20,10 @@ RT_Trace( msg$ ):"bbRT_Trace"
 RT_HasPrompt%():"bbRT_HasPrompt"
 RT_TextPrompt$( title$,initial$ ):"bbRT_TextPrompt"
 
+-- port settings (switch_settings.ini, edited by the overlay menu)
+RT_SettingF#( key$,def# ):"bbRT_SettingF"
+RT_SettingI%( key$,def% ):"bbRT_SettingI"
+
 -- cpuid.dll
 CPUid$():"bbCPUid"
 CPUextendedId$():"bbCPUextendedId"

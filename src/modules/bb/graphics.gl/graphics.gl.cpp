@@ -174,6 +174,7 @@ static int textureSizeCap(){
 #else
 		cap=0;
 #endif
+		cap=bbSettingInt( "texture_max",cap ); // overlay menu setting (needs a restart)
 		if( const char *e=getenv( "BB_TEXTURE_MAX" ) ) cap=atoi( e );
 	}
 	return cap;
