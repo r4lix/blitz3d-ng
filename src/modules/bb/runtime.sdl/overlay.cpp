@@ -19,6 +19,9 @@
 #include <vector>
 #ifdef BB_NX
 #include <malloc.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 
 #ifdef _WIN32
@@ -216,7 +219,8 @@ void sectionNote( const char *text ){
 
 // ---- tabs -----------------------------------------------------------------------
 int tab=0;
-const char *kTabs[]={ "Controls","Display","Audio","System" };
+const char *kTabs[]={ "Controls","Display","Audio","Multiplayer","System" };
+const int kTabCount=5;
 bool closeRequested=false,quitRequested=false;
 
 void applyAudio(){
@@ -295,6 +299,59 @@ void drawAudio(){
 	sectionNote( "Scales everything on top of the game's own volume sliders." );
 }
 
+
+// ---- multiplayer (co-op presence prototype, see port/Multiplayer.bb) --------------------
+std::string localAddress(){
+#ifdef BB_NX
+	struct in_addr a;
+	a.s_addr=(in_addr_t)gethostid();
+	return inet_ntoa( a );
+#else
+	return "(see your network settings)";
+#endif
+}
+
+bool textRow( const char *label,const char *key,const char *def,const char *prompt ){
+	std::string v=bbSetting( key,def );
+	if( row( label,v.empty() ? "(not set)" : v,false )==2 ){
+		std::string n=bbTextPrompt( prompt,v );
+		bbSettingSet( key,n );
+		return true;
+	}
+	return false;
+}
+
+void drawMultiplayer(){
+	int mode=bbSettingInt( "mp_mode",0 );
+	const char *names[]={ "Off","Host","Join" };
+	int r=row( "Mode",names[mode<0||mode>2 ? 0 : mode] );
+	if( r ){
+		mode+=(r==-1 ? -1 : 1);
+		if( mode<0 ) mode=2;
+		if( mode>2 ) mode=0;
+		setI( "mp_mode",mode );
+	}
+	textRow( "Player name","mp_name","Player","Player name" );
+	textRow( "Map seed (shared)","mp_seed","","Map seed (the same for every player)" );
+	if( mode==2 ) textRow( "Host address","mp_ip","","Host IP address (for example 192.168.1.20)" );
+	{
+		int port=bbSettingInt( "mp_port",47815 );
+		int r2=row( "Port",std::to_string( port ) );
+		if( r2 ){
+			port+=(r2==-1 ? -1 : 1);
+			if( port<1024 ) port=1024;
+			if( port>65535 ) port=65535;
+			setI( "mp_port",port );
+		}
+	}
+	if( mode==1 ) ImGui::TextDisabled( "Your address: %s  port %d",localAddress().c_str(),bbSettingInt( "mp_port",47815 ) );
+	ImGui::Spacing();
+	sectionNote( "Early prototype: you see the other players moving through your own copy of the level. "
+		"Everyone starts a NEW game with the same Map seed (set above) and the same "
+		"difficulty; the host starts first. Doors, items and monsters are not shared yet. "
+		"Players must be on the same network. Takes effect when a game starts or loads." );
+}
+
 void drawSystem(){
 	if( row( "Resume game","",false )==2 ) closeRequested=true;
 	if( row( "Reset all settings",confirmQuit ? "" : "",false )==2 ) resetDefaults();
@@ -327,8 +384,8 @@ void drawMenu(){
 
 	// tab strip (touch: tap a tab, pad: L / R)
 	ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,ImVec2( 8,8 ) );
-	float tabW=(ImGui::GetContentRegionAvail().x-8*3)/4;
-	for( int i=0;i<4;i++ ){
+	float tabW=(ImGui::GetContentRegionAvail().x-8*(kTabCount-1))/kTabCount;
+	for( int i=0;i<kTabCount;i++ ){
 		if( i ) ImGui::SameLine();
 		ImGui::PushStyleColor( ImGuiCol_Button,i==tab ? ImVec4( 0.62f,0.12f,0.12f,1 ) : ImVec4( 0.16f,0.16f,0.16f,1 ) );
 		ImGui::PushStyleColor( ImGuiCol_ButtonHovered,i==tab ? ImVec4( 0.7f,0.15f,0.15f,1 ) : ImVec4( 0.22f,0.22f,0.22f,1 ) );
@@ -342,8 +399,8 @@ void drawMenu(){
 	ImGui::Separator();
 
 	// inputs that change the tab / focus
-	if( pressed( SDL_CONTROLLER_BUTTON_LEFTSHOULDER ) ){ tab=(tab+3)%4;focusRow=0;scrollToFocus=true;confirmQuit=false; }
-	if( pressed( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) ){ tab=(tab+1)%4;focusRow=0;scrollToFocus=true;confirmQuit=false; }
+	if( pressed( SDL_CONTROLLER_BUTTON_LEFTSHOULDER ) ){ tab=(tab+kTabCount-1)%kTabCount;focusRow=0;scrollToFocus=true;confirmQuit=false; }
+	if( pressed( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) ){ tab=(tab+1)%kTabCount;focusRow=0;scrollToFocus=true;confirmQuit=false; }
 	int before=focusRow;
 	if( pressed( SDL_CONTROLLER_BUTTON_DPAD_UP ) ) focusRow--;
 	if( pressed( SDL_CONTROLLER_BUTTON_DPAD_DOWN ) ) focusRow++;
@@ -359,7 +416,8 @@ void drawMenu(){
 	case 0:drawControls();break;
 	case 1:drawDisplay();break;
 	case 2:drawAudio();break;
-	case 3:drawSystem();break;
+	case 3:drawMultiplayer();break;
+	case 4:drawSystem();break;
 	}
 	rowCount=curRow;
 	ImGui::EndChild();

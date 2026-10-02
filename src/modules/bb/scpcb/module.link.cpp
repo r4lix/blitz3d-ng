@@ -23,6 +23,7 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "$RT_TextPrompt$title$initial","bbRT_TextPrompt",bbRT_TextPrompt );
 	rtSym( "#RT_SettingF$key#def","bbRT_SettingF",bbRT_SettingF );
 	rtSym( "%RT_SettingI$key%def","bbRT_SettingI",bbRT_SettingI );
+	rtSym( "$RT_SettingS$key$def","bbRT_SettingS",bbRT_SettingS );
 	rtSym( "$CPUid","bbCPUid",bbCPUid );
 	rtSym( "$CPUextendedId","bbCPUextendedId",bbCPUextendedId );
 	rtSym( "$CPUbrand","bbCPUbrand",bbCPUbrand );

@@ -36,6 +36,7 @@ BBStr * BBCALL bbRT_TextPrompt( BBStr *title,BBStr *initial );
 // port settings (switch_settings.ini, edited by the overlay menu)
 bb_float_t BBCALL bbRT_SettingF( BBStr *key,bb_float_t def );
 bb_int_t BBCALL bbRT_SettingI( BBStr *key,bb_int_t def );
+BBStr * BBCALL bbRT_SettingS( BBStr *key,BBStr *def );
 
 // cpuid.dll
 BBStr * BBCALL bbCPUid(  );

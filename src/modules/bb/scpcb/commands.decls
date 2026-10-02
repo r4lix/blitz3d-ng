@@ -23,6 +23,7 @@ RT_TextPrompt$( title$,initial$ ):"bbRT_TextPrompt"
 -- port settings (switch_settings.ini, edited by the overlay menu)
 RT_SettingF#( key$,def# ):"bbRT_SettingF"
 RT_SettingI%( key$,def% ):"bbRT_SettingI"
+RT_SettingS$( key$,def$ ):"bbRT_SettingS"
 
 -- cpuid.dll
 CPUid$():"bbCPUid"

@@ -592,3 +592,26 @@ void bbSettingsSave(){
 		fclose( f );
 	}
 }
+
+#ifdef BB_NX
+#include <switch.h>
+std::string bbTextPrompt( const std::string &title,const std::string &initial ){
+	std::string result=initial;
+	SwkbdConfig kbd;
+	Result rc=swkbdCreate( &kbd,0 );
+	if( R_SUCCEEDED( rc ) ){
+		char out[128]={ 0 };
+		swkbdConfigMakePresetDefault( &kbd );
+		swkbdConfigSetHeaderText( &kbd,title.c_str() );
+		swkbdConfigSetInitialText( &kbd,initial.c_str() );
+		swkbdConfigSetStringLenMax( &kbd,31 );
+		rc=swkbdShow( &kbd,out,sizeof(out) );
+		swkbdClose( &kbd );
+		if( R_SUCCEEDED( rc ) ) result=out;
+	}
+	fprintf( stderr,"[keyboard] result 0x%x text '%s'\n",(unsigned)rc,result.c_str() );
+	return result;
+}
+#else
+std::string bbTextPrompt( const std::string &title,const std::string &initial ){ return initial; }
+#endif

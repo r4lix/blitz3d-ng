@@ -5,9 +5,6 @@
 #include <bb/bank/bank.h>
 #include "../stdutil/stdutil.h"
 
-#ifdef BB_NX
-#include <switch.h>
-#endif
 #include <map>
 #include <string>
 #include <cstdio>
@@ -131,24 +128,15 @@ bb_int_t BBCALL bbRT_HasPrompt(){
 }
 
 BBStr * BBCALL bbRT_TextPrompt( BBStr *title,BBStr *initial ){
-	std::string result=*initial;
-#ifdef BB_NX
-	SwkbdConfig kbd;
-	Result rc=swkbdCreate( &kbd,0 );
-	if( R_SUCCEEDED( rc ) ){
-		char out[128]={ 0 };
-		swkbdConfigMakePresetDefault( &kbd );
-		swkbdConfigSetHeaderText( &kbd,title->c_str() );
-		swkbdConfigSetInitialText( &kbd,initial->c_str() );
-		swkbdConfigSetStringLenMax( &kbd,31 );
-		rc=swkbdShow( &kbd,out,sizeof(out) );
-		swkbdClose( &kbd );
-		if( R_SUCCEEDED( rc ) ) result=out;
-	}
-	fprintf( stderr,"[keyboard] result 0x%x text '%s'\n",(unsigned)rc,result.c_str() );
-#endif
+	std::string result=bbTextPrompt( *title,*initial );
 	delete title;delete initial;
 	return d_new BBStr( result );
+}
+
+BBStr * BBCALL bbRT_SettingS( BBStr *key,BBStr *def ){
+	std::string v=bbSetting( *key,*def );
+	delete key;delete def;
+	return d_new BBStr( v );
 }
 
 // ---------------------------------------------------------------------------

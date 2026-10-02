@@ -66,6 +66,9 @@ float bbSettingFloat( const std::string &key,float def );
 void bbSettingSet( const std::string &key,const std::string &value );
 void bbSettingsSave();
 
+// On-screen keyboard (Switch software keyboard); returns `initial` unchanged where there is none.
+std::string bbTextPrompt( const std::string &title,const std::string &initial );
+
 //lazy version of auto_ptr
 template<class T>
 class a_ptr{
