@@ -330,7 +330,7 @@ public:
 		};
 
 		float w=nr_r-nr_l;
-		float h=nr_b-nr_t;
+		float h=nr_t-nr_b; // as the D3D scene: top above bottom (this used to be inverted and flipped every orthographic render)
 
 		float W=2/w;
 		float H=2/h;

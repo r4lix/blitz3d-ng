@@ -433,11 +433,22 @@ void GLCanvas::blit( int x,int y,BBCanvas *s,int src_x,int src_y,int src_w,int s
 	int srcX0=src_x*sx,srcX1=src_x*sx+src_w*sx;
 	int dstX0=x*dx,dstX1=(x+src_w)*dx;
 
+	if( getenv( "BB_TRACE_BLIT" ) ){
+		fprintf( stderr,"[blit] src %dx%d tex=%u fb=%u pixmap=%d scale=%g | dst %dx%d tex=%u fb=%u | src(%d,%d)-(%d,%d) dst(%d,%d)-(%d,%d) flags=0x%x\n",
+			src->width,src->height,src->texture,rfb,src->pixmap ? 1 : 0,sy,width,height,texture,dfb,
+			srcX0,se.bottom,srcX1,se.top,dstX0,de.bottom,dstX1,de.top,(unsigned)flags );
+	}
 	GL( glBindFramebuffer( GL_READ_FRAMEBUFFER,rfb ) );
 	GL( glBindFramebuffer( GL_DRAW_FRAMEBUFFER,dfb ) );
 
 	// colour only: the two framebuffers need not share a depth format
+	// glBlitFramebuffer is clipped by the scissor box, which the renderer leaves at the window
+	// size: copies into a texture larger than the window (the game's 2048x2048 resize texture)
+	// would otherwise only land where they overlap the window
+	const GLboolean scissor=glIsEnabled( GL_SCISSOR_TEST );
+	if( scissor ) GL( glDisable( GL_SCISSOR_TEST ) );
 	GL( glBlitFramebuffer( srcX0,se.bottom,srcX1,se.top,dstX0,de.bottom,dstX1,de.top,GL_COLOR_BUFFER_BIT,GL_NEAREST ) );
+	if( scissor ) GL( glEnable( GL_SCISSOR_TEST ) );
 
 	if( texture ){
 		GL( glBindTexture( target,texture ) );
