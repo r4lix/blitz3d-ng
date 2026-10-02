@@ -48,6 +48,10 @@ public:
 };
 
 static void logTerminate(){
+	// the handler itself can end up back here (rethrow, abort); log once and leave
+	static bool again=false;
+	if( again ) svcExitProcess();
+	again=true;
 	fprintf( stderr,"[fatal] std::terminate (uncaught C++ exception)\n" );
 	try{
 		if( std::current_exception() ) std::rethrow_exception( std::current_exception() );
@@ -59,7 +63,7 @@ static void logTerminate(){
 		fprintf( stderr,"[fatal] thrown: unknown type\n" );
 	}
 	fflush( stderr );
-	abort();
+	svcExitProcess();
 }
 
 // A crash (data abort etc.) is reported to the log: error, registers and a frame-pointer
