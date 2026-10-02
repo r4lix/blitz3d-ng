@@ -2,6 +2,9 @@
 #include "../stdutil/stdutil.h"
 #include "filesystem.h"
 #include <bb/stream/stream.h>
+#include <cstdio>
+#include <cstring>
+#include <cerrno>
 #include <fstream>
 #include <streambuf>
 #include <string>
@@ -73,7 +76,11 @@ static BBFile *open( BBStr *f,std::ios_base::openmode n ){
 		file_set.insert( f );
 		return f;
 	}
-	fprintf( stderr,"[open failed] '%s'\n",t.c_str() );
+	{
+		FILE *probe=fopen( t.c_str(),"rb" );
+		fprintf( stderr,"[open failed] '%s' (fopen: %s)\n",t.c_str(),probe ? "works" : strerror( errno ) );
+		if( probe ) fclose( probe );
+	}
 	return 0;
 }
 

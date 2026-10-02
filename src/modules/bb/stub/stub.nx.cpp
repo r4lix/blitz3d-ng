@@ -49,6 +49,15 @@ public:
 
 static void logTerminate(){
 	fprintf( stderr,"[fatal] std::terminate (uncaught C++ exception)\n" );
+	try{
+		if( std::current_exception() ) std::rethrow_exception( std::current_exception() );
+	}catch( const std::exception &e ){
+		fprintf( stderr,"[fatal] what(): %s\n",e.what() );
+	}catch( const char *s ){
+		fprintf( stderr,"[fatal] thrown: %s\n",s );
+	}catch( ... ){
+		fprintf( stderr,"[fatal] thrown: unknown type\n" );
+	}
 	fflush( stderr );
 	abort();
 }
@@ -93,6 +102,7 @@ int BBCALL bbStart( int argc,char *argv[], BBMAIN bbMain ) {
 	setvbuf( stdout,0,_IONBF,0 );
 	fprintf( stderr,"start: argv0=%s cwd=%s\n",exe.c_str(),dir.c_str() );
 	std::set_terminate( logTerminate );
+	setenv( "BB_TRACE_ERRORS","1",1 ); // runtime errors are printed as [bbEx] lines
 
 	std::string cmd_line="";
 	bbStartup( argv[0],cmd_line.c_str() );
