@@ -38,6 +38,10 @@ bb_float_t BBCALL bbRT_SettingF( BBStr *key,bb_float_t def );
 bb_int_t BBCALL bbRT_SettingI( BBStr *key,bb_int_t def );
 BBStr * BBCALL bbRT_SettingS( BBStr *key,BBStr *def );
 
+// gamepad inventory navigation: the game reports the slot centres every frame an inventory is open
+void BBCALL bbRT_PadInvBegin(  );
+void BBCALL bbRT_PadInvSlot( bb_int_t x,bb_int_t y );
+
 // cpuid.dll
 BBStr * BBCALL bbCPUid(  );
 BBStr * BBCALL bbCPUextendedId(  );

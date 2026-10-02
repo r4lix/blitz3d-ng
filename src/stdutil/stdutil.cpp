@@ -615,3 +615,10 @@ std::string bbTextPrompt( const std::string &title,const std::string &initial ){
 #else
 std::string bbTextPrompt( const std::string &title,const std::string &initial ){ return initial; }
 #endif
+
+// ---- gamepad inventory slots ---------------------------------------------------------
+std::vector<std::pair<int,int> > bbPadSlots;
+unsigned bbPadSlotTick=0;
+
+void bbPadSlotsBegin(){ bbPadSlots.clear();++bbPadSlotTick; }
+void bbPadSlotAdd( int x,int y ){ bbPadSlots.push_back( std::make_pair( x,y ) ); }

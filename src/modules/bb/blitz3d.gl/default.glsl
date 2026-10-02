@@ -197,7 +197,7 @@ vec4 Blend( vec4 t0,vec4 t1,int i ){
   case BLEND_REPLACE:  return t0;
   case BLEND_ALPHA:    return mix(t0, t1, t1.a);
   case BLEND_MULTIPLY: return t0*t1;
-  case BLEND_ADD:      return t0+t1;
+  case BLEND_ADD:      return vec4( t0.rgb+t1.rgb,t0.a ); // colour only: adding the alpha too made every additive pass fully opaque
   case BLEND_MULTIPLY2: return vec4( t0.rgb*t1.rgb*2.0,t0.a*t1.a );
   case BLEND_DOT3:     return t0; // bump mapping is not implemented
   }

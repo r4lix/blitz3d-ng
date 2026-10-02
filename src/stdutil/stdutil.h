@@ -66,6 +66,14 @@ float bbSettingFloat( const std::string &key,float def );
 void bbSettingSet( const std::string &key,const std::string &value );
 void bbSettingsSave();
 
+// Slot centres the game reports while an inventory is open (see RT_PadInvBegin/RT_PadInvSlot), so the
+// gamepad can jump between them instead of pushing a pointer around.
+#include <vector>
+extern std::vector<std::pair<int,int> > bbPadSlots;
+extern unsigned bbPadSlotTick;
+void bbPadSlotsBegin();
+void bbPadSlotAdd( int x,int y );
+
 // On-screen keyboard (Switch software keyboard); returns `initial` unchanged where there is none.
 std::string bbTextPrompt( const std::string &title,const std::string &initial );
 

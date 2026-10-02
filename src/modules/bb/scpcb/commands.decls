@@ -25,6 +25,10 @@ RT_SettingF#( key$,def# ):"bbRT_SettingF"
 RT_SettingI%( key$,def% ):"bbRT_SettingI"
 RT_SettingS$( key$,def$ ):"bbRT_SettingS"
 
+-- gamepad inventory navigation: the game reports the slot centres every frame an inventory is open
+RT_PadInvBegin():"bbRT_PadInvBegin"
+RT_PadInvSlot( x%,y% ):"bbRT_PadInvSlot"
+
 -- cpuid.dll
 CPUid$():"bbCPUid"
 CPUextendedId$():"bbCPUextendedId"

@@ -117,6 +117,8 @@ void SDLRuntime::asyncEnd(){
 // Debug aid: BB_INJECT="3000:key:44;6000:move:640,400;6200:click:1" pushes
 // synthetic SDL events when the given number of milliseconds have elapsed.
 // key:<SDL scancode> sends a press and release, click:<1|2|3> a button press.
+static Uint32 bbInjectPadUntil[SDL_CONTROLLER_BUTTON_MAX]={ 0 }; // "padbtn": a button held for 200 ms
+
 static void injectEvents(){
 	struct Item{ Uint32 at;std::string kind;int a,b;bool done; };
 	static std::vector<Item> items;
@@ -153,6 +155,8 @@ static void injectEvents(){
 		}else if( i.kind=="move" ){
 			e.type=SDL_MOUSEMOTION;e.motion.x=i.a;e.motion.y=i.b;
 			SDL_PushEvent( &e );
+		}else if( i.kind=="padbtn" ){
+			if( i.a>=0 && i.a<SDL_CONTROLLER_BUTTON_MAX ) bbInjectPadUntil[i.a]=SDL_GetTicks()+200;
 		}else if( i.kind=="menu" ){
 			overlayRequested=true;
 		}else if( i.kind=="click" ){
