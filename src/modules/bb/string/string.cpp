@@ -26,14 +26,13 @@ BBStr * BBCALL bbLeft( BBStr *s,bb_int_t n ){
 
 BBStr * BBCALL bbRight( BBStr *s,bb_int_t n ){
 	CHKPOS( n );
+	if( n<=0 ){ s->clear();return s; } // Right$( s,0 ) is "" (this used to return the last character)
 	const char *begin=s->data();
-	const char *end=begin+s->size()-1;
-	while( --n>0&&end>begin ){
-		utf8_int32_t chr;
-		end=utf8rcodepoint( end,&chr );
+	const char *p=begin+s->size();
+	while( n-->0&&p>begin ){
+		do{ --p; }while( p>begin && (*p&0xC0)==0x80 ); // step back one UTF-8 code point
 	}
-	n=end-begin;
-	*s=s->substr( n );return s;
+	*s=s->substr( p-begin );return s;
 }
 
 BBStr * BBCALL bbReplace( BBStr *s,BBStr *from,BBStr *to ){

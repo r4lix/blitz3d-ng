@@ -87,22 +87,26 @@ BBStr * BBCALL bbReadLine( BBStream *s ){
 
 void BBCALL bbWriteByte( BBStream *s,bb_int_t n ){
 	if( bb_env.debug ) debugStream( s );
-	s->write( (char*)&n,1 );
+	char c=(char)n;
+	s->write( &c,1 );
 }
 
 void BBCALL bbWriteShort( BBStream *s,bb_int_t n ){
 	if( bb_env.debug ) debugStream( s );
-	s->write( (char*)&n,2 );
+	short v=(short)n;
+	s->write( (char*)&v,2 );
 }
 
 void BBCALL bbWriteInt( BBStream *s,bb_int_t n ){
 	if( bb_env.debug ) debugStream( s );
-	s->write( (char*)&n,4 );
+	int v=(int)n; // bb_int_t is 64 bit on 64 bit targets: write the 32 bit value, not part of it
+	s->write( (char*)&v,4 );
 }
 
 void BBCALL bbWriteFloat( BBStream *s,bb_float_t n ){
 	if( bb_env.debug ) debugStream( s );
-	s->write( (char*)&n,4 );
+	float v=(float)n; // bb_float_t is a double on 64 bit targets
+	s->write( (char*)&v,4 );
 }
 
 void BBCALL bbWriteString( BBStream *s,BBStr *t ){

@@ -377,7 +377,8 @@ std::string filenamefile( const std::string &t ){
 }
 #endif
 
-#ifndef WINDOWS
+#if !defined(WINDOWS) && !defined(_WIN32)
+#define BB_CASEFOLD_PATHS
 #include <sys/stat.h>
 #include <dirent.h>
 #include <strings.h>
@@ -449,7 +450,11 @@ std::string canonicalpath( const std::string &t ){
 	return lower(s);
 #else
 	replace( s.begin(),s.end(),'\\','/' );
+#ifdef BB_CASEFOLD_PATHS
 	return resolvecase( s );
+#else
+	return s;
+#endif
 #endif
 }
 

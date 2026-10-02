@@ -362,8 +362,9 @@ BBLIB bb_float_t BBCALL bbStats3D( bb_int_t n ){
 BBLIB Texture * BBCALL bbLoadTexture( BBStr *file,bb_int_t flags ){
 	SLOWLOG("LoadTexture",*file);
 	debug3d();
-	Texture *t=d_new Texture( canonicalpath(*file),flags );delete file;
-	if( !t->getCanvas(0) ){ delete t;return 0; }
+	std::string path=canonicalpath(*file);
+	Texture *t=d_new Texture( path,flags );delete file;
+	if( !t->getCanvas(0) ){ fprintf( stderr,"[texture failed] '%s'\n",path.c_str() );delete t;return 0; }
 	texture_set.insert( t );
 	return t;
 }
@@ -371,9 +372,11 @@ BBLIB Texture * BBCALL bbLoadTexture( BBStr *file,bb_int_t flags ){
 BBLIB Texture * BBCALL bbLoadAnimTexture( BBStr *file,bb_int_t flags,bb_int_t w,bb_int_t h,bb_int_t first,bb_int_t cnt ){
 	SLOWLOG("LoadAnimTexture",*file);
 	debug3d();
-	Texture *t=d_new Texture( *file,flags,w,h,first,cnt );
+	std::string path=canonicalpath(*file);
+	Texture *t=d_new Texture( path,flags,w,h,first,cnt );
 	delete file;
 	if( !t->getCanvas(0) ){
+		fprintf( stderr,"[texture failed] '%s'\n",path.c_str() );
 		delete t;
 		return 0;
 	}
