@@ -228,7 +228,7 @@ void resetDefaults(){
 	for( const char *k:keys ) bbSettingSet( k,"" );
 	// an empty value reads as "not set": remove by writing the defaults explicitly
 	setF( kPadSpeed,650,0 );setF( kDeadzone,0.18f,2 );setF( kCurve,2.0f,2 );setI( kTrigger,0 );
-	setF( kFont,1.2f,1 );setI( kTexMax,kDefaultTexMax );setI( kShowFps,0 );setI( kVolume,100 );
+	setF( kFont,1.15f,2 );setI( kTexMax,kDefaultTexMax );setI( kShowFps,0 );setI( kVolume,100 );
 	writeResolution( 1280,720 );
 	applyAudio();
 }
@@ -276,7 +276,7 @@ void drawDisplay(){
 			setI( kTexMax,opts[i] );
 		}
 	}
-	floatRow( "Text size (restart)",kFont,1.2f,0.8f,1.8f,0.1f,1,"x" );
+	floatRow( "Text size (restart)",kFont,1.15f,0.8f,1.8f,0.05f,2,"x" );
 	boolRow( "FPS counter",kShowFps,false );
 	sectionNote( "Lower resolutions and smaller textures use less memory and run faster. "
 		"Items marked (restart) apply the next time the game starts." );
