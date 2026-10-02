@@ -1,4 +1,5 @@
 
+#include "../../../stdutil/slowlog.h"
 #include "../stdutil/stdutil.h"
 #include "graphics.h"
 #include <bb/runtime/runtime.h>
@@ -13,6 +14,9 @@
 
 #include <fstream>
 #include <chrono>
+#ifdef BB_NX
+#include <malloc.h>
+#endif
 #include <vector>
 #include <set>
 
@@ -614,9 +618,23 @@ static void debugScreenshot(){
 void BBCALL bbFlip( bb_int_t vwait ){
 #ifdef BB_NX
 	{
-		static int flips=0;
-		++flips;
-		if( flips<=5 || flips%300==0 ) fprintf( stderr,"[flip %d]\n",flips );
+		// frame pacing log: one summary line every 10 s plus every frame slower than 120 ms
+		using clk=std::chrono::steady_clock;
+		static int flips=0,windowFrames=0,slow=0;
+		static double worst=0,sum=0;
+		static clk::time_point last=clk::now(),windowStart=clk::now();
+		auto now=clk::now();
+		double ms=std::chrono::duration<double,std::milli>( now-last ).count();
+		last=now;
+		++flips;++windowFrames;sum+=ms;
+		if( ms>worst ) worst=ms;
+		if( ms>120 && flips>2 ){ ++slow;fprintf( stderr,"[slow] frame %d took %.0f ms\n",flips,ms ); }
+		double w=std::chrono::duration<double,std::milli>( now-windowStart ).count();
+		if( w>=10000 ){
+			struct mallinfo mi=mallinfo();
+			fprintf( stderr,"[perf] frame %d: %.1f fps avg, worst %.0f ms, %d slow, heap %d MB\n",flips,windowFrames*1000.0/w,worst,slow,(int)(((unsigned)mi.uordblks)>>20) );
+			windowFrames=0;slow=0;worst=0;sum=0;windowStart=now;
+		}
 	}
 #endif
 	wdFlip();
@@ -898,6 +916,7 @@ bb_int_t BBCALL bbStringHeight( BBStr *str ){
 }
 
 BBImage * BBCALL bbLoadImage( BBStr *s ){
+	SLOWLOG("LoadImage",*s);
 	std::string t=*s;delete s;
 	BBCanvas *c=gx_graphics->loadCanvas( t,0 );
 	if( !c ) return 0;
@@ -911,6 +930,7 @@ BBImage * BBCALL bbLoadImage( BBStr *s ){
 }
 
 BBImage * BBCALL bbLoadAnimImage( BBStr *s,bb_int_t w,bb_int_t h,bb_int_t first,bb_int_t cnt ){
+	SLOWLOG("LoadAnimImage",*s);
 
 	std::string t=*s;delete s;
 

@@ -1,4 +1,5 @@
 
+#include "../../../stdutil/slowlog.h"
 #include "../../../stdutil/stdutil.h"
 #include <bb/runtime/runtime.h>
 #include "audio.h"
@@ -22,6 +23,7 @@ static BBChannel *playMusic( BBStr *f,bool use_3d ){
 }
 
 BBSound * BBCALL bbLoadSound( BBStr *f ){
+	SLOWLOG("LoadSound",*f);
 	return loadSound( f,false );
 }
 
@@ -56,6 +58,7 @@ void BBCALL bbSoundPan( BBSound *sound,bb_float_t pan ){
 }
 
 BBChannel * BBCALL bbPlaySound( BBSound *sound ){
+	SLOWLOG("PlaySound","");
 	if( !sound ) return 0;
 	debugSound( sound );
 	return sound->play();
@@ -112,6 +115,7 @@ bb_float_t BBCALL bbChannelPosition( BBChannel *channel ){
 }
 
 BBSound * BBCALL bbLoad3DSound( BBStr *f ){
+	SLOWLOG("Load3DSound",*f);
 	return loadSound( f,true );
 }
 

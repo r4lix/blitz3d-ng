@@ -1,4 +1,5 @@
 
+#include "../../../stdutil/slowlog.h"
 #include "std.h"
 
 #ifdef PRO
@@ -359,6 +360,7 @@ BBLIB bb_float_t BBCALL bbStats3D( bb_int_t n ){
 //Note: modify canvas->backup() to NOT release backup image!
 //
 BBLIB Texture * BBCALL bbLoadTexture( BBStr *file,bb_int_t flags ){
+	SLOWLOG("LoadTexture",*file);
 	debug3d();
 	Texture *t=d_new Texture( canonicalpath(*file),flags );delete file;
 	if( !t->getCanvas(0) ){ delete t;return 0; }
@@ -367,6 +369,7 @@ BBLIB Texture * BBCALL bbLoadTexture( BBStr *file,bb_int_t flags ){
 }
 
 BBLIB Texture * BBCALL bbLoadAnimTexture( BBStr *file,bb_int_t flags,bb_int_t w,bb_int_t h,bb_int_t first,bb_int_t cnt ){
+	SLOWLOG("LoadAnimTexture",*file);
 	debug3d();
 	Texture *t=d_new Texture( *file,flags,w,h,first,cnt );
 	delete file;
@@ -512,6 +515,7 @@ BBLIB Brush * BBCALL bbCreateBrush( bb_float_t r,bb_float_t g,bb_float_t b ){
 }
 
 BBLIB Brush * BBCALL bbLoadBrush( BBStr *file,bb_int_t flags,bb_float_t u_scale,bb_float_t v_scale ){
+	SLOWLOG("LoadBrush",*file);
 	debug3d();
 	Texture t( *file,flags );delete file;
 	if( !t.getCanvas(0) ) return 0;
@@ -613,6 +617,7 @@ BBLIB Entity * BBCALL bbCreateMesh( Entity *p ){
 }
 
 BBLIB Entity * BBCALL bbLoadMesh( BBStr *f,Entity *p ){
+	SLOWLOG("LoadMesh",*f);
 	debugParent(p);
 	Entity *e=loadEntity( f->c_str(),MeshLoader::HINT_COLLAPSE );
 	delete f;
@@ -624,6 +629,7 @@ BBLIB Entity * BBCALL bbLoadMesh( BBStr *f,Entity *p ){
 }
 
 BBLIB Entity * BBCALL bbLoadAnimMesh( BBStr *f,Entity *p ){
+	SLOWLOG("LoadAnimMesh",*f);
 	debugParent(p);
 	Entity *e=loadEntity( f->c_str(),0 );
 	delete f;
@@ -1402,6 +1408,7 @@ BBLIB Entity * BBCALL bbCreateListener( Entity *p,bb_float_t roll,bb_float_t dop
 }
 
 BBLIB BBChannel * BBCALL bbEmitSound( BBSound *sound,Object *o ){
+	SLOWLOG("EmitSound","");
 	if( bb_env.debug ){
 		debugObject(o);
 		if( !listener ) RTEX( "No Listener created" );

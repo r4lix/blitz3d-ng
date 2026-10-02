@@ -27,6 +27,10 @@
 #include <cstring>
 #include <deque>
 #include <memory>
+#ifndef _WIN32
+#include <pthread.h>
+#endif
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -123,6 +127,7 @@ public:
 	float volume=1.0f,pan=0.0f;
 	int pitchHz=0;
 	bool loop=false,paused=false;
+	bool pending=false; // sound still being decoded on the worker thread; silent until it is
 	std::atomic<bool> playing{ true };
 
 	bool is3d=false;
@@ -235,7 +240,7 @@ public:
 					active[vi]=active.back();active.pop_back();
 					continue;
 				}
-				if( !v->paused ) mixVoice( v,acc.data(),frames );
+				if( !v->paused && !v->pending ) mixVoice( v,acc.data(),frames );
 				if( !v->playing ){
 					v->release();
 					active[vi]=active.back();active.pop_back();
@@ -303,11 +308,80 @@ public:
 	}
 };
 
+// Sounds are decoded on first use. Decoding a long OGG takes 100+ ms, so it happens on a
+// worker thread: the voice is created at once and stays silent until its audio is ready.
+struct SoundData{
+	std::shared_ptr<PCM> pcm;
+	bool queued=false,failed=false;
+	std::vector<Voice*> waiting;
+};
+
+struct DecodeJob{ std::shared_ptr<SoundData> data;std::string path;Mixer *mixer; };
+
+class DecodeWorker{
+	std::mutex m;
+	std::condition_variable cv;
+	std::deque<DecodeJob> jobs;
+public:
+	void run(){
+		for(;;){
+			DecodeJob j;
+			{
+				std::unique_lock<std::mutex> g( m );
+				cv.wait( g,[this]{ return !jobs.empty(); } );
+				j=jobs.front();jobs.pop_front();
+			}
+			std::shared_ptr<PCM> pcm=decodeAll( j.path );
+			finish( j,pcm );
+		}
+	}
+	DecodeWorker(){
+#ifdef _WIN32
+		std::thread( [this](){ run(); } ).detach();
+#else
+		// the default thread stack on the Switch is small and the decoders are not shy about stack
+		pthread_attr_t attr;
+		pthread_attr_init( &attr );
+		pthread_attr_setstacksize( &attr,2*1024*1024 );
+		pthread_t t;
+		pthread_create( &t,&attr,[]( void *self )->void*{ ((DecodeWorker*)self)->run();return 0; },this );
+		pthread_detach( t );
+#endif
+	}
+	void finish( DecodeJob &j,std::shared_ptr<PCM> pcm );
+	void push( const DecodeJob &j ){
+		std::lock_guard<std::mutex> g( m );
+		jobs.push_back( j );
+		cv.notify_one();
+	}
+};
+
+static DecodeWorker &decodeWorker(){
+	static DecodeWorker *w=new DecodeWorker(); // never destroyed: the thread outlives static teardown
+	return *w;
+}
+
+void DecodeWorker::finish( DecodeJob &j,std::shared_ptr<PCM> pcm ){
+	std::lock_guard<std::mutex> g( j.mixer->lock );
+	j.data->pcm=pcm;
+	j.data->failed=!pcm;
+	for( Voice *v:j.data->waiting ){
+		if( !v->pending ) continue;
+		if( pcm && v->playing ){
+			v->pcm=pcm;
+			v->channels=pcm->channels;
+			v->rate=pcm->rate;
+		}else v->playing=false;
+		v->pending=false;
+	}
+	j.data->waiting.clear();
+}
+
 class MixerSound : public BBSound{
 public:
 	Mixer *mixer;
 	std::string path;
-	std::shared_ptr<PCM> pcm;
+	std::shared_ptr<SoundData> data=std::make_shared<SoundData>();
 	bool loop=false;
 	int pitchHz=0;
 	float volume=1.0f,pan=0.0f;
@@ -315,12 +389,26 @@ public:
 	MixerSound( Mixer *m,const std::string &p ):mixer( m ),path( p ){}
 
 	Voice *start( const float *pos3 ){
-		if( !pcm ) pcm=decodeAll( path );
-		if( !pcm ) return 0;
+		std::shared_ptr<PCM> pcm;
+		bool needQueue=false;
 		Voice *v=new Voice( mixer );
-		v->pcm=pcm;
-		v->channels=pcm->channels;
-		v->rate=pcm->rate;
+		{
+			std::lock_guard<std::mutex> g( mixer->lock );
+			if( data->failed ){ delete v;return 0; }
+			pcm=data->pcm;
+			if( !pcm ){
+				v->pending=true;
+				data->waiting.push_back( v );
+				needQueue=!data->queued;
+				data->queued=true;
+			}
+		}
+		if( needQueue ) decodeWorker().push( DecodeJob{ data,path,mixer } );
+		if( pcm ){
+			v->pcm=pcm;
+			v->channels=pcm->channels;
+			v->rate=pcm->rate;
+		}
 		v->loop=loop;
 		v->pitchHz=pitchHz;
 		v->volume=volume;
