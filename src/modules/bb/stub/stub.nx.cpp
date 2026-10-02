@@ -103,6 +103,21 @@ int BBCALL bbStart( int argc,char *argv[], BBMAIN bbMain ) {
 	fprintf( stderr,"start: argv0=%s cwd=%s\n",exe.c_str(),dir.c_str() );
 	std::set_terminate( logTerminate );
 	setenv( "BB_TRACE_ERRORS","1",1 ); // runtime errors are printed as [bbEx] lines
+	// optional env.txt (KEY=VALUE per line) next to the NRO sets the debug variables
+	// (BB_INJECT, BB_SCREENSHOT_*, ...) on a device or emulator that has no environment
+	if( FILE *ef=fopen( "env.txt","r" ) ){
+		char line[512];
+		while( fgets( line,sizeof(line),ef ) ){
+			char *eq=strchr( line,'=' );
+			if( !eq || line[0]=='#' ) continue;
+			*eq=0;
+			char *v=eq+1;
+			for( char *p=v;*p;++p ) if( *p=='\r' || *p=='\n' ) *p=0;
+			setenv( line,v,1 );
+			fprintf( stderr,"env: %s=%s\n",line,v );
+		}
+		fclose( ef );
+	}
 
 	std::string cmd_line="";
 	bbStartup( argv[0],cmd_line.c_str() );

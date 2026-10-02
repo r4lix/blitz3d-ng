@@ -730,27 +730,24 @@ static BBCanvas *tformCanvas( BBCanvas *c,float m[2][2],int x_handle,int y_handl
 }
 
 static bool saveCanvas( BBCanvas *c,const std::string &f ){
-#ifndef WIN32 // FIXME: port to posix
-	return false;
-#else
-	std::ofstream out( f.c_str(),std::ios::binary );
+	std::ofstream out( canonicalpath( f ).c_str(),std::ios::binary );
 	if( !out.good() ) return false;
 
 	int tempsize=(c->getWidth()*3+3)&~3;
 
-	BITMAPFILEHEADER bf;
-	memset( &bf,0,sizeof(bf) );
-	bf.bfType='MB';
-	bf.bfSize=sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER)+tempsize*c->getHeight();
-	bf.bfOffBits=sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
-	BITMAPINFOHEADER bi;memset( &bi,0,sizeof(bi) );
-	bi.biSize=sizeof(bi);
-	bi.biWidth=c->getWidth();
-	bi.biHeight=c->getHeight();
-	bi.biPlanes=1;
-	bi.biBitCount=24;
-	out.write( (char*)&bf,sizeof(bf) );
-	out.write( (char*)&bi,sizeof(bi) );
+	// 14 byte file header + 40 byte info header, little endian (written by hand so it is portable)
+	unsigned char hdr[54];
+	memset( hdr,0,sizeof(hdr) );
+	auto put32=[&]( int at,unsigned v ){ for( int i=0;i<4;i++ ) hdr[at+i]=(v>>(8*i))&0xff; };
+	hdr[0]='B';hdr[1]='M';
+	put32( 2,54+tempsize*c->getHeight() );
+	put32( 10,54 );
+	put32( 14,40 );
+	put32( 18,c->getWidth() );
+	put32( 22,c->getHeight() );
+	hdr[26]=1;
+	hdr[28]=24;
+	out.write( (char*)hdr,sizeof(hdr) );
 
 	unsigned char *temp=d_new unsigned char[ tempsize ];
 	memset( temp,0,tempsize );
@@ -771,7 +768,6 @@ static bool saveCanvas( BBCanvas *c,const std::string &f ){
 	delete [] temp;
 
 	return out.good();
-#endif
 }
 
 bb_int_t BBCALL bbLoadBuffer( BBCanvas *c,BBStr *str ){
