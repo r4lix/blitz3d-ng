@@ -12,8 +12,9 @@ uniform samplerCube bbTextureCube[8];
 #define FOG_LINEAR 1
 
 struct BBLightData {
-  mat4 TForm;
+  mat4 TForm;     // light -> world
   vec4 Color;
+  vec4 Params;    // type (1 distant, 2 point, 3 spot), range, cos(outer/2), cos(inner/2)
 } ;
 
 layout(std140) uniform BBLightState {
@@ -134,25 +135,49 @@ void main() {
   if( RS.FullBright==0 ){
     bbVertex_Normal = normalize( EyeNormal );
 
+    // Lighting as the original fixed-function pipeline did it, in world space: distant lights shine along
+    // their forward axis, point lights fade with range/distance (D3D attenuation 1/(distance/range)), spot
+    // lights add the cone. (This used to treat every light as a distant one, which lit objects far from any lamp.)
+    vec3 worldPos = (bbWorldMatrix * vec4(bbPosition, 1.0)).xyz;
+    vec3 N = normalize( transpose(inverse(mat3(bbWorldMatrix))) * bbNormal );
+    vec3 camPos = -transpose(mat3(bbViewMatrix)) * bbViewMatrix[3].xyz;
+    vec3 V = normalize( camPos - worldPos );
+
     vec4 Diffuse=vec4( 0.0 ),Specular=vec4( 0.0 );
 
     for( int i=0;i<LS.LightsUsed;i++ ){
-      float nDotVP,nDotHV,pf;
+      mat4 T = LS.Light[i].TForm;
+      vec3 fwd = normalize( T[2].xyz );
+      int type = int( LS.Light[i].Params.x + 0.5 );
+      vec3 L;
+      float atten = 1.0;
 
-      vec3 LightPos=normalize( mat3( bbViewMatrix*LS.Light[i].TForm*rotationMatrix( vec3(1.0,0.0,0.0), 1.5708 ) )*vec3(0.0,1.0,0.0) );
-      vec3 halfVector = normalize( LightPos+vec3( 0.0,0.0,-1.0 ));
+      if( type==1 ){
+        L = -fwd;
+      }else{
+        vec3 d = T[3].xyz - worldPos;
+        float dist = max( length(d), 0.001 );
+        L = d / dist;
+        atten = LS.Light[i].Params.y / dist;
+        if( type==3 ){
+          float rho = dot( -L,fwd );
+          float co = LS.Light[i].Params.z,ci = LS.Light[i].Params.w;
+          atten *= rho>=ci ? 1.0 : ( rho<=co ? 0.0 : (rho-co)/max(ci-co,0.0001) );
+        }
+      }
 
-      nDotVP = max( 0.0,dot( bbVertex_Normal,LightPos ) );
-      nDotHV = max( 0.0,dot( bbVertex_Normal,vec3( halfVector )));
-      pf = pow( nDotHV,100.0 )*float(nDotVP!=0.0);
+      float nDotL = max( 0.0,dot( N,L ) );
+      Diffuse += LS.Light[i].Color * (nDotL*atten);
 
-      Diffuse  += LS.Light[i].Color * nDotVP;
-      Specular += LS.Light[i].Color * pf;
+      if( RS.BrushShininess>0.0 && nDotL>0.0 ){
+        float nDotH = max( 0.0,dot( N,normalize( L+V ) ) );
+        Specular += LS.Light[i].Color * (pow( nDotH,RS.BrushShininess*128.0 )*min( RS.BrushShininess,1.0 )*atten);
+      }
     }
 
     bbVertex_Color = RS.Ambient * bbMaterialColor +
                      Diffuse    * bbMaterialColor +
-                     Specular   * vec4( 1.0 );
+                     Specular;
     bbVertex_Color = clamp( bbVertex_Color, 0.0, 1.0 );
     bbVertex_Color.a = bbMaterialColor.a; // TODO: is this right?
   }else{

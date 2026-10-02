@@ -36,8 +36,7 @@ public:
 		b=light->getColor().z;
 
 		range=light->getRange();
-		light->getConeAngles( inner_angle,outer_angle );
-		outer_angle*=rtod;
+		light->getConeAngles( inner_angle,outer_angle ); // radians (full cone angles)
 
 		const BBScene::Matrix *m=(BBScene::Matrix*)&(light->getRenderTform());
 
@@ -154,6 +153,7 @@ struct LightState{
 	struct LightData{
 		float mat[16];
 		float color[4];
+		float params[4]; // type (1 distant, 2 point, 3 spot), range, cos(outer/2), cos(inner/2)
 	} data[8];
 
 	int lights_used;
@@ -204,6 +204,10 @@ private:
 
 			memcpy( ls.data[i].mat,lights[i]->matrix,sizeof(ls.data[i].mat) );
 			ls.data[i].color[0]=lights[i]->r;ls.data[i].color[1]=lights[i]->g;ls.data[i].color[2]=lights[i]->b;ls.data[i].color[3]=1.0;
+			ls.data[i].params[0]=(float)lights[i]->type;
+			ls.data[i].params[1]=lights[i]->range;
+			ls.data[i].params[2]=cosf( lights[i]->outer_angle*0.5f );
+			ls.data[i].params[3]=cosf( lights[i]->inner_angle*0.5f );
 
 			float z=1.0f,w=0.0f;
 			if( lights[i]->type!=Light::LIGHT_DISTANT ){
