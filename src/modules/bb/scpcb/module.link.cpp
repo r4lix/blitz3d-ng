@@ -26,6 +26,8 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "$RT_SettingS$key$def","bbRT_SettingS",bbRT_SettingS );
 	rtSym( "RT_PadInvBegin","bbRT_PadInvBegin",bbRT_PadInvBegin );
 	rtSym( "RT_PadInvSlot%x%y","bbRT_PadInvSlot",bbRT_PadInvSlot );
+	rtSym( "RT_PadMenuBegin","bbRT_PadMenuBegin",bbRT_PadMenuBegin );
+	rtSym( "RT_PadMenuRect%x%y%w%h","bbRT_PadMenuRect",bbRT_PadMenuRect );
 	rtSym( "$CPUid","bbCPUid",bbCPUid );
 	rtSym( "$CPUextendedId","bbCPUextendedId",bbCPUextendedId );
 	rtSym( "$CPUbrand","bbCPUbrand",bbCPUbrand );

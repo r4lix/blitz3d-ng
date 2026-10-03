@@ -241,6 +241,7 @@ void drawControls(){
 	floatRow( "Pointer / look speed",kPadSpeed,650,150,1500,50,0," px/s" );
 	floatRow( "Stick dead zone",kDeadzone,0.18f,0.05f,0.40f,0.01f,0,"%",100.0f );
 	floatRow( "Stick response curve",kCurve,2.0f,1.0f,3.0f,0.25f,2,"" );
+	boolRow( "Button hints on screen","pad_hints",true );
 	{
 		int t=bbSettingInt( kTrigger,0 );
 		int r=row( "Open this menu with",t==0 ? "Hold  -  (1.2 s)" : "Hold  L3 + R3" );
@@ -529,6 +530,14 @@ void presentFrame( bool swap ){
 		glClear( GL_COLOR_BUFFER_BIT );
 	}
 	ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
+	if( !swap ){
+		// BB_HUD_SHOTS=<prefix>: save every 300th frame that has the on-screen hints (testing without a screen)
+		static int hudFrame=0,hudShots=0;
+		static const char *hudPrefix=getenv( "BB_HUD_SHOTS" );
+		if( hudPrefix && (bbPadHint || bbPadFocusValid) && ++hudFrame%300==0 && hudShots<10 ){
+			bbSaveBackBuffer( std::string( hudPrefix )+"_"+std::to_string( hudShots++ )+".bmp" );
+		}
+	}
 	if( swap ){
 		// BB_OVERLAY_SHOTS=<prefix>: save every 25th menu frame (testing without a screen)
 		static int frame=0,shots=0;
@@ -558,12 +567,27 @@ void drawHud(){
 
 	if( !ensureInit() ) return;
 	beginFrame( ms/1000.0f );
-	char text[64];
-	snprintf( text,sizeof(text),"%.0f FPS  %.1f ms",fps,ms );
 	ImDrawList *dl=ImGui::GetForegroundDrawList();
-	ImVec2 ts=ImGui::CalcTextSize( text );
-	dl->AddRectFilled( ImVec2( 8,8 ),ImVec2( 20+ts.x,16+ts.y ),IM_COL32( 0,0,0,150 ),4 );
-	dl->AddText( ImVec2( 14,12 ),IM_COL32( 255,255,255,255 ),text );
+	if( bbSettingInt( kShowFps,0 ) ){
+		char text[64];
+		snprintf( text,sizeof(text),"%.0f FPS  %.1f ms",fps,ms );
+		ImVec2 ts=ImGui::CalcTextSize( text );
+		dl->AddRectFilled( ImVec2( 8,8 ),ImVec2( 20+ts.x,16+ts.y ),IM_COL32( 0,0,0,150 ),4 );
+		dl->AddText( ImVec2( 14,12 ),IM_COL32( 255,255,255,255 ),text );
+	}
+	if( bbSettingInt( "pad_hints",1 ) ){
+		// the control the gamepad is on (menus) and what the buttons do on this screen
+		if( bbPadFocusValid ){
+			const float sx=(float)dispW/1280.0f,sy=(float)dispH/720.0f;
+			dl->AddRect( ImVec2( bbPadFocus.x*sx-3,bbPadFocus.y*sy-3 ),ImVec2( (bbPadFocus.x+bbPadFocus.w)*sx+3,(bbPadFocus.y+bbPadFocus.h)*sy+3 ),IM_COL32( 60,255,90,255 ),3.0f,0,3.0f );
+		}
+		if( bbPadHint ){
+			ImVec2 ts=ImGui::CalcTextSize( bbPadHint );
+			float x=(dispW-ts.x)*0.5f,y=(float)dispH-ts.y-26.0f;
+			dl->AddRectFilled( ImVec2( x-12,y-6 ),ImVec2( x+ts.x+12,y+ts.y+6 ),IM_COL32( 0,0,0,170 ),6.0f );
+			dl->AddText( ImVec2( x,y ),IM_COL32( 235,235,235,255 ),bbPadHint );
+		}
+	}
 	presentFrame( false );
 }
 
@@ -648,5 +672,5 @@ void overlayFrameHook(){
 		applyAudio();
 	}
 	if( overlayRequested ){ runModal();return; }
-	if( bbSettingInt( kShowFps,0 ) ) drawHud();
+	if( bbSettingInt( kShowFps,0 ) || (bbSettingInt( "pad_hints",1 ) && (bbPadHint || bbPadFocusValid)) ) drawHud();
 }

@@ -622,3 +622,30 @@ unsigned bbPadSlotTick=0;
 
 void bbPadSlotsBegin(){ bbPadSlots.clear();++bbPadSlotTick; }
 void bbPadSlotAdd( int x,int y ){ bbPadSlots.push_back( std::make_pair( x,y ) ); }
+
+// ---- gamepad menu navigation ---------------------------------------------------------
+std::vector<BBPadRect> bbPadMenuRects;
+unsigned bbPadMenuTick=0;
+bool bbPadFocusValid=false;
+BBPadRect bbPadFocus={ 0,0,0,0 };
+const char *bbPadHint=0;
+
+// The game adds rectangles while it draws a frame, and the runtime reads them at any moment (every Delay
+// and Flip), so keep the last complete frame's list apart from the one being built.
+static std::vector<BBPadRect> pendingPadRects;
+
+void bbPadMenuBegin(){
+	bbPadMenuRects.swap( pendingPadRects );
+	pendingPadRects.clear();
+	++bbPadMenuTick;
+}
+
+void bbPadMenuAdd( int x,int y,int w,int h ){
+	if( w<8 || h<8 || w>900 || h>600 ) return; // not a button
+	for( size_t i=pendingPadRects.size();i-->0 && pendingPadRects.size()-i<48; ){
+		const BBPadRect &r=pendingPadRects[i];
+		if( r.x==x && r.y==y && r.w==w && r.h==h ) return;
+	}
+	BBPadRect r={ x,y,w,h };
+	pendingPadRects.push_back( r );
+}

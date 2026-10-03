@@ -122,6 +122,9 @@ bb_int_t BBCALL bbRT_SettingI( BBStr *key,bb_int_t def ){
 void BBCALL bbRT_PadInvBegin(){ bbPadSlotsBegin(); }
 void BBCALL bbRT_PadInvSlot( bb_int_t x,bb_int_t y ){ bbPadSlotAdd( (int)x,(int)y ); }
 
+void BBCALL bbRT_PadMenuBegin(){ bbPadMenuBegin(); }
+void BBCALL bbRT_PadMenuRect( bb_int_t x,bb_int_t y,bb_int_t w,bb_int_t h ){ bbPadMenuAdd( (int)x,(int)y,(int)w,(int)h ); }
+
 bb_int_t BBCALL bbRT_HasPrompt(){
 #ifdef BB_NX
 	return 1;

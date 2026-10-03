@@ -74,6 +74,17 @@ extern unsigned bbPadSlotTick;
 void bbPadSlotsBegin();
 void bbPadSlotAdd( int x,int y );
 
+// Rectangles of the clickable things the game's menus draw (reported by the game through MouseOn every
+// frame a menu is open); the gamepad moves between them. Also what the overlay draws for the gamepad.
+struct BBPadRect{ int x,y,w,h; };
+extern std::vector<BBPadRect> bbPadMenuRects;
+extern unsigned bbPadMenuTick;
+void bbPadMenuBegin();
+void bbPadMenuAdd( int x,int y,int w,int h );
+extern bool bbPadFocusValid;          // draw a highlight around the rectangle the gamepad is on
+extern BBPadRect bbPadFocus;
+extern const char *bbPadHint;         // button hints for the current screen (0 = none)
+
 // On-screen keyboard (Switch software keyboard); returns `initial` unchanged where there is none.
 std::string bbTextPrompt( const std::string &title,const std::string &initial );
 

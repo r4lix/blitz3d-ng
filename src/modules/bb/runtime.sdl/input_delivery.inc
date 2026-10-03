@@ -100,7 +100,65 @@ struct PadEmulation{
 	int slotQuiet=99;
 	bool sticky=false,prevA=false,prevY=false,prevDir[4]={ false,false,false,false };
 	int dbl=0;
+	Uint32 dblStart=0;
 	Uint32 dirHeldSince[4]={ 0,0,0,0 },dirRepeat[4]={ 0,0,0,0 };
+
+	// menus: the game reports button rectangles; d-pad / left stick jump between them
+	unsigned menuTickSeen=0;
+	Uint32 menuSeenAt=0,padActiveUntil=0;
+	bool menuUpdate(){
+		const Uint32 now=SDL_GetTicks();
+		if( bbPadMenuTick!=menuTickSeen ){ menuTickSeen=bbPadMenuTick;menuSeenAt=now; }
+		return menuSeenAt && now-menuSeenAt<250 && !bbPadMenuRects.empty();
+	}
+
+	// the smallest reported rectangle under a point, or -1
+	int rectAt( float x,float y ){
+		int best=-1;
+		long bestArea=1L<<30;
+		for( size_t i=0;i<bbPadMenuRects.size();i++ ){
+			const BBPadRect &r=bbPadMenuRects[i];
+			if( x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h && (long)r.w*r.h<bestArea ){ bestArea=(long)r.w*r.h;best=(int)i; }
+		}
+		return best;
+	}
+
+	int nearestRect( float x,float y ){
+		int best=-1;
+		float bd=1e9f;
+		for( size_t i=0;i<bbPadMenuRects.size();i++ ){
+			const BBPadRect &r=bbPadMenuRects[i];
+			float dx=r.x+r.w*0.5f-x,dy=r.y+r.h*0.5f-y,d=dx*dx+dy*dy;
+			if( d<bd ){ bd=d;best=(int)i; }
+		}
+		return best;
+	}
+
+	void moveMenuFocus( int dir ){
+		int cur=rectAt( px,py );
+		int target=-1;
+		if( cur<0 ) target=nearestRect( px,py );
+		else{
+			const float vx=dir==2 ? -1.0f : dir==3 ? 1.0f : 0.0f,vy=dir==0 ? -1.0f : dir==1 ? 1.0f : 0.0f;
+			const BBPadRect &c=bbPadMenuRects[cur];
+			const float cx=c.x+c.w*0.5f,cy=c.y+c.h*0.5f;
+			float bestScore=1e9f;
+			for( size_t i=0;i<bbPadMenuRects.size();i++ ){
+				if( (int)i==cur ) continue;
+				const BBPadRect &r=bbPadMenuRects[i];
+				float dx=r.x+r.w*0.5f-cx,dy=r.y+r.h*0.5f-cy;
+				float along=dx*vx+dy*vy,perp=fabsf( dx*vy-dy*vx );
+				if( along<6 ) continue;
+				float score=along+2.5f*perp;
+				if( score<bestScore ){ bestScore=score;target=(int)i; }
+			}
+		}
+		if( target<0 ) return;
+		const BBPadRect &t=bbPadMenuRects[target];
+		px=t.x+t.w*0.5f;py=t.y+t.h*0.5f;
+		deliverMouseMove( (int)px,(int)py );
+		if( getenv( "BB_TRACE_PAD" ) ) fprintf( stderr,"[pad] menu focus dir=%d -> rect %d (%d,%d %dx%d)\n",dir,target,t.x,t.y,t.w,t.h );
+	}
 
 	Uint32 slotSeenAt=0;
 	// the game reports the slots once per frame while an inventory is open; idle() runs more often than
@@ -232,44 +290,78 @@ struct PadEmulation{
 		want[SDL_SCANCODE_W]=ly<-threshold( SDL_SCANCODE_W );
 		want[SDL_SCANCODE_S]=ly>threshold( SDL_SCANCODE_S );
 
-		// inventory open: the stick and d-pad jump between slots, A picks an item up / drops it
-		// (press, move, press: no need to hold), Y double-clicks (use / equip)
+		// Screens the game draws with a mouse in mind: the d-pad / left stick jump between things, so
+		// there is nothing to aim.
+		//   inventory: A uses/opens the item (double click), Y picks it up / drops it, X or B closes
+		//   menus:     A clicks, B goes back; holding A and pressing left/right drags a slider
 		const bool inv=invUpdate();
-		static bool invWas=false;
-		if( inv!=invWas ){ invWas=inv;if( getenv( "BB_TRACE_PAD" ) ) fprintf( stderr,"[pad] inventory mode %s (%d slots, pointer %d,%d)\n",inv ? "on" : "off",(int)bbPadSlots.size(),(int)px,(int)py ); }
-		const bool aBtn=btn( SDL_CONTROLLER_BUTTON_A ),yBtn=btn( SDL_CONTROLLER_BUTTON_Y );
+		const bool menu=!inv && menuUpdate();
+		const bool padUi=inv || menu;
+		static bool uiWas=false;
+		if( padUi!=uiWas ){ uiWas=padUi;if( getenv( "BB_TRACE_PAD" ) ) fprintf( stderr,"[pad] %s mode %s (%d slots, %d rects, pointer %d,%d)\n",inv ? "inventory" : "menu",padUi ? "on" : "off",(int)bbPadSlots.size(),(int)bbPadMenuRects.size(),(int)px,(int)py ); }
+		const bool aBtn=btn( SDL_CONTROLLER_BUTTON_A ),yBtn=btn( SDL_CONTROLLER_BUTTON_Y ),bBtn=btn( SDL_CONTROLLER_BUTTON_B );
 		bool lmb;
-		if( inv ){
+		bbPadHint=0;
+		bbPadFocusValid=false;
+		if( padUi ){
 			want[SDL_SCANCODE_A]=want[SDL_SCANCODE_D]=want[SDL_SCANCODE_W]=want[SDL_SCANCODE_S]=false;
-			if( aBtn && !prevA ){
-				sticky=!sticky;
-				if( getenv( "BB_TRACE_PAD" ) ) fprintf( stderr,"[pad] sticky grab %s at %d,%d\n",sticky ? "down" : "up",(int)px,(int)py );
-			}
-			if( yBtn && !prevY ) dbl=4;
-			bool dblDown=dbl==4 || dbl==2;
-			if( dbl>0 ) dbl--;
-			lmb=sticky || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f || dblDown;
-
 			const bool dirNow[4]={ btn( SDL_CONTROLLER_BUTTON_DPAD_UP ) || ly<-0.6f,btn( SDL_CONTROLLER_BUTTON_DPAD_DOWN ) || ly>0.6f,
 				btn( SDL_CONTROLLER_BUTTON_DPAD_LEFT ) || lx<-0.6f,btn( SDL_CONTROLLER_BUTTON_DPAD_RIGHT ) || lx>0.6f };
+			if( aBtn || yBtn || bBtn || dirNow[0] || dirNow[1] || dirNow[2] || dirNow[3] ) padActiveUntil=tickNow+6000;
+
+			if( inv ){
+				if( yBtn && !prevY ){
+					sticky=!sticky;
+					if( getenv( "BB_TRACE_PAD" ) ) fprintf( stderr,"[pad] sticky grab %s at %d,%d\n",sticky ? "down" : "up",(int)px,(int)py );
+				}
+				// a double click, paced in real time (idle() runs several times per game frame, and the game
+				// needs to see the two clicks in different frames): down 70 ms, up 70 ms, down 70 ms, up
+				if( aBtn && !prevA ) dblStart=tickNow;
+				bool dblDown=false;
+				if( dblStart ){
+					Uint32 phase=(tickNow-dblStart)/70;
+					if( phase>=4 ) dblStart=0;
+					else dblDown=phase==0 || phase==2;
+				}
+				lmb=sticky || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f || dblDown;
+				bbPadHint=sticky ? "Move with the d-pad, then Y to drop the item     X / B: close" : "A: use / open     Y: pick up, then Y again to drop     X / B: close";
+			}else{
+				sticky=false;dbl=0;dblStart=0;
+				lmb=aBtn || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f;
+				bbPadHint="D-pad / left stick: move     A: select     B: back     A + left/right: drag a slider";
+				int f=rectAt( px,py );
+				if( f>=0 && tickNow<padActiveUntil ){ bbPadFocus=bbPadMenuRects[f];bbPadFocusValid=true; }
+			}
+
 			for( int k=0;k<4;k++ ){
 				bool fire=false;
 				if( dirNow[k] && !prevDir[k] ){ fire=true;dirHeldSince[k]=tickNow;dirRepeat[k]=tickNow; }
 				else if( dirNow[k] && tickNow-dirHeldSince[k]>380 && tickNow-dirRepeat[k]>170 ){ fire=true;dirRepeat[k]=tickNow; }
 				prevDir[k]=dirNow[k];
-				if( fire ) moveFocus( k );
+				if( menu && aBtn && (k==2 || k==3) ){
+					// dragging a slider: nudge the pointer sideways while A is held
+					if( dirNow[k] ){
+						px+=k==3 ? 5.0f : -5.0f;
+						if( px<0 ) px=0;
+						deliverMouseMove( (int)px,(int)py );
+					}
+				}else if( fire ){
+					if( inv ) moveFocus( k ); else moveMenuFocus( k );
+				}
 			}
+			if( inv && bBtn ) want[SDL_SCANCODE_TAB]=true;
+			if( menu && bBtn ) want[SDL_SCANCODE_ESCAPE]=true;
 		}else{
-			sticky=false;dbl=0;
+			sticky=false;dbl=0;dblStart=0;
 			for( int k=0;k<4;k++ ) prevDir[k]=false;
 			lmb=aBtn || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f;
 			if( aBtn ) want[SDL_SCANCODE_RETURN]=true; // "press any key", text boxes
 		}
 		prevA=aBtn;prevY=yBtn;
 		const bool rmb=axis( SDL_CONTROLLER_AXIS_TRIGGERLEFT )>0.4f;
-		if( btn( SDL_CONTROLLER_BUTTON_B ) ) want[SDL_SCANCODE_LCTRL]=true;   // crouch
+		if( !padUi && bBtn ) want[SDL_SCANCODE_LCTRL]=true;   // crouch
 		if( btn( SDL_CONTROLLER_BUTTON_X ) ) want[SDL_SCANCODE_TAB]=true;     // inventory
-		if( (!inv && yBtn) || btn( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) ) want[SDL_SCANCODE_SPACE]=true; // blink
+		if( (!padUi && yBtn) || btn( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) ) want[SDL_SCANCODE_SPACE]=true; // blink
 		if( btn( SDL_CONTROLLER_BUTTON_LEFTSHOULDER ) || btn( SDL_CONTROLLER_BUTTON_LEFTSTICK ) ) want[SDL_SCANCODE_LSHIFT]=true; // sprint
 		if( btn( SDL_CONTROLLER_BUTTON_START ) ) want[SDL_SCANCODE_ESCAPE]=true;
 		// "-": quick save on a short press; held it opens the overlay menu (or L3+R3 does)
@@ -291,7 +383,7 @@ struct PadEmulation{
 				else if( nowMs-chordStart>=600 ){ chordStart=0;overlayRequested=true; }
 			}else chordStart=0;
 		}
-		if( !inv ){
+		if( !padUi ){
 			if( btn( SDL_CONTROLLER_BUTTON_DPAD_UP ) ) want[SDL_SCANCODE_UP]=true;
 			if( btn( SDL_CONTROLLER_BUTTON_DPAD_DOWN ) ) want[SDL_SCANCODE_DOWN]=true;
 			if( btn( SDL_CONTROLLER_BUTTON_DPAD_LEFT ) ) want[SDL_SCANCODE_LEFT]=true;
