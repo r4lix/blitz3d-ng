@@ -127,7 +127,8 @@ void main() {
 
   vec4 bbMaterialColor;
   if( RS.UseVertexColor>0 ){
-    bbMaterialColor = bbColor;
+    // vertex colour replaces the brush colour; the entity/brush alpha still applies
+    bbMaterialColor = vec4( bbColor.rgb,RS.BrushColor.a*bbColor.a );
   }else{
     bbMaterialColor = RS.BrushColor;
   }

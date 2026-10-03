@@ -126,7 +126,7 @@ public:
 		const Surface::Vertex *v=(const Surface::Vertex*)_v;
 		float coords[3]={ v->coords.x,v->coords.y,v->coords.z };
 		float normal[3]={ v->normal.x,v->normal.y,v->normal.z };
-		setVertex( n,coords,normal,0xffffff,v->tex_coords );
+		setVertex( n,coords,normal,v->color,v->tex_coords ); // the vertex colour (baked lighting in many room meshes) was dropped here
 	}
 
 	void setVertex( int n,const float coords[3],const float normal[3],const float tex_coords[2][2] ){
