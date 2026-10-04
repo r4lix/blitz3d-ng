@@ -305,9 +305,10 @@ struct PadEmulation{
 		bbPadFocusValid=false;
 		if( padUi ){
 			want[SDL_SCANCODE_A]=want[SDL_SCANCODE_D]=want[SDL_SCANCODE_W]=want[SDL_SCANCODE_S]=false;
-			const bool dirNow[4]={ btn( SDL_CONTROLLER_BUTTON_DPAD_UP ) || ly<-0.6f,btn( SDL_CONTROLLER_BUTTON_DPAD_DOWN ) || ly>0.6f,
-				btn( SDL_CONTROLLER_BUTTON_DPAD_LEFT ) || lx<-0.6f,btn( SDL_CONTROLLER_BUTTON_DPAD_RIGHT ) || lx>0.6f };
-			if( aBtn || yBtn || bBtn || dirNow[0] || dirNow[1] || dirNow[2] || dirNow[3] ) padActiveUntil=tickNow+6000;
+			// d-pad: jump to the neighbouring button / slot. Left stick: move the pointer freely (below).
+			const bool dirNow[4]={ btn( SDL_CONTROLLER_BUTTON_DPAD_UP ),btn( SDL_CONTROLLER_BUTTON_DPAD_DOWN ),
+				btn( SDL_CONTROLLER_BUTTON_DPAD_LEFT ),btn( SDL_CONTROLLER_BUTTON_DPAD_RIGHT ) };
+			if( aBtn || yBtn || bBtn || dirNow[0] || dirNow[1] || dirNow[2] || dirNow[3] || fabsf( lx )>0.3f || fabsf( ly )>0.3f ) padActiveUntil=tickNow+6000;
 
 			if( inv ){
 				if( yBtn && !prevY ){
@@ -324,11 +325,11 @@ struct PadEmulation{
 					else dblDown=phase==0 || phase==2;
 				}
 				lmb=sticky || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f || dblDown;
-				bbPadHint=sticky ? "Move with the d-pad, then Y to drop the item     X / B: close" : "A: use / open     Y: pick up, then Y again to drop     X / B: close";
+				bbPadHint=sticky ? "Move with the d-pad or left stick, then Y to drop the item     X / B: close" : "A: use / open     Y: pick up, then Y again to drop     d-pad / left stick: move     X / B: close";
 			}else{
 				sticky=false;dbl=0;dblStart=0;
 				lmb=aBtn || axis( SDL_CONTROLLER_AXIS_TRIGGERRIGHT )>0.4f;
-				bbPadHint="D-pad / left stick: move     A: select     B: back     A + left/right: drag a slider";
+				bbPadHint="Left stick: move the cursor     D-pad: jump to the next button     A: select     B: back";
 				int f=rectAt( px,py );
 				if( f>=0 && tickNow<padActiveUntil ){ bbPadFocus=bbPadMenuRects[f];bbPadFocusValid=true; }
 			}
@@ -404,6 +405,11 @@ struct PadEmulation{
 		if( dt>0.1f ) dt=0.1f;
 
 		float rx=axis( SDL_CONTROLLER_AXIS_RIGHTX ),ry=axis( SDL_CONTROLLER_AXIS_RIGHTY );
+		if( padUi ){
+			// menus and inventories: the left stick moves the pointer (the right stick still does too)
+			if( fabsf( lx )>fabsf( rx ) ) rx=lx;
+			if( fabsf( ly )>fabsf( ry ) ) ry=ly;
+		}
 		const float deadzone=bbSettingFloat( "pad_deadzone",0.18f ),curve=bbSettingFloat( "pad_curve",2.0f );
 		auto shape=[deadzone,curve]( float v ){
 			float a=fabsf( v );
