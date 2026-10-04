@@ -409,6 +409,9 @@ struct PadEmulation{
 			// menus and inventories: the left stick moves the pointer (the right stick still does too)
 			if( fabsf( lx )>fabsf( rx ) ) rx=lx;
 			if( fabsf( ly )>fabsf( ry ) ) ry=ly;
+			// dragging a slider: the game only follows the pointer while it stays on the slider's line,
+			// so holding A in a menu locks the pointer vertically (left/right on the stick or d-pad drags)
+			if( !inv && aBtn ) ry=0;
 		}
 		const float deadzone=bbSettingFloat( "pad_deadzone",0.18f ),curve=bbSettingFloat( "pad_curve",2.0f );
 		auto shape=[deadzone,curve]( float v ){
