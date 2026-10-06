@@ -121,7 +121,7 @@ BBMODULE_LINK( scpcb ){
 	rtSym( "%JsonGetArray%value","bbJsonGetArray",bbJsonGetArray );
 	rtSym( "%JsonGetArraySize%array","bbJsonGetArraySize",bbJsonGetArraySize );
 	rtSym( "%JsonGetArrayValue%array%index","bbJsonGetArrayValue",bbJsonGetArrayValue );
-	rtSym( "$FindNextDirectory$path$directory$default","bbFindNextDirectory",bbFindNextDirectory );
+	rtSym( "$FindNextDirectory$path$directory$def","bbFindNextDirectory",bbFindNextDirectory );
 	rtSym( "DownloadFileThread$url$file","bbDownloadFileThread",bbDownloadFileThread );
 	rtSym( "%GetDownloadFileThreadSize","bbGetDownloadFileThreadSize",bbGetDownloadFileThreadSize );
 	rtSym( "%FI_Load%type$file%mode","bbFI_Load",bbFI_Load );

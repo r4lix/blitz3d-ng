@@ -30,7 +30,7 @@ llvm::Value *FieldVarNode::translate2( Codegen_LLVM *g ){
 	if( bb_nullsafe ){
 		auto *ity=llvm::Type::getInt8Ty( *g->context );
 		auto *aty=llvm::ArrayType::get( ity,1<<20 );
-		auto *dummy=g->module->getGlobalVariable( "bb_null_obj" );
+		auto *dummy=g->module->getGlobalVariable( "bb_null_obj",true );
 		if( !dummy ){
 			dummy=new llvm::GlobalVariable( *g->module,aty,false,llvm::GlobalValue::InternalLinkage,llvm::ConstantAggregateZero::get( aty ),"bb_null_obj" );
 			dummy->setAlignment( llvm::Align( 16 ) );

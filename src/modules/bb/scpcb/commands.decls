@@ -139,7 +139,7 @@ JsonGetArraySize%( array% ):"bbJsonGetArraySize"
 JsonGetArrayValue%( array%,index% ):"bbJsonGetArrayValue"
 
 -- UE Reborn: downloads, FreeImage, user32, uemp
-FindNextDirectory$( path$,directory$,default$ ):"bbFindNextDirectory"
+FindNextDirectory$( path$,directory$,def$ ):"bbFindNextDirectory"
 DownloadFileThread( url$,file$ ):"bbDownloadFileThread"
 GetDownloadFileThreadSize%():"bbGetDownloadFileThreadSize"
 FI_Load%( type%,file$,mode% ):"bbFI_Load"

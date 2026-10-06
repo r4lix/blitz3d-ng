@@ -152,7 +152,7 @@ bb_int_t BBCALL bbJsonGetArraySize( bb_int_t array );
 bb_int_t BBCALL bbJsonGetArrayValue( bb_int_t array,bb_int_t index );
 
 // UE Reborn: downloads, FreeImage, user32, uemp
-BBStr * BBCALL bbFindNextDirectory( BBStr *path,BBStr *directory,BBStr *default );
+BBStr * BBCALL bbFindNextDirectory( BBStr *path,BBStr *directory,BBStr *def );
 void BBCALL bbDownloadFileThread( BBStr *url,BBStr *file );
 bb_int_t BBCALL bbGetDownloadFileThreadSize(  );
 bb_int_t BBCALL bbFI_Load( bb_int_t type,BBStr *file,bb_int_t mode );
