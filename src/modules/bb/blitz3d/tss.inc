@@ -3,6 +3,7 @@
 extern std::map<Entity*,void(*)(Entity*)> *entity_destructors;
 
 BBLIB bb_int_t BBCALL bbEntityHidden( Entity *e ){
+	if( !e ) return 1;	// TSS: a null entity counts as hidden
 	debugEntity(e);
 	return !e->visible();
 }

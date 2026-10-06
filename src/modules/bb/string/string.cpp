@@ -73,7 +73,7 @@ BBStr * BBCALL bbMid( BBStr *s,bb_int_t o,bb_int_t n ){
 	utf8_int32_t chr;
 	const char *l=s->c_str(),*r=s->c_str()+s->size();
 	const char *p=l;while( --o>0&&p<r ) p=utf8codepoint( p,&chr );
-	const char *e=p;while( n-->0&&p<r ) e=utf8codepoint( e,&chr );
+	const char *e=p;while( n-->0&&e<r ) e=utf8codepoint( e,&chr );
 	*s=s->substr( p-l,e-p );return s;
 }
 

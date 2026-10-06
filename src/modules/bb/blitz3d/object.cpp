@@ -158,3 +158,6 @@ void Object::updateSounds(){
 		}
 	}
 }
+
+extern unsigned entity_topology;
+unsigned &Object::entity_topology_ref(){ return entity_topology; }

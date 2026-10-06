@@ -73,6 +73,10 @@ int SDLGraphics::getAvailVidmem()const{ return 0; }
 int SDLGraphics::getTotalVidmem()const{ return 0; }
 
 void SDLGraphics::moveMouse( int x,int y ){
+#ifdef BB_DESKTOP
+	// never steal the cursor from other windows
+	if( SDL_GetKeyboardFocus()!=wnd || getenv( "BB_NOWARP" ) ) return;
+#endif
 	SDL_WarpMouseInWindow( wnd,x,y );
 }
 

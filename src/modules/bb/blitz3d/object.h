@@ -38,8 +38,9 @@ public:
 	void setCollisionRadii( const Vector &radii );
 	void setCollisionBox( const Box &box );
 	void setOrder( int n ){ order=n; }
-	void setPickGeometry( int n ){ pick_geom=n; }
-	void setObscurer( bool t ){ obscurer=t; }
+	void setPickGeometry( int n ){ pick_geom=n;++entity_topology_ref(); }
+	void setObscurer( bool t ){ obscurer=t;++entity_topology_ref(); }
+	static unsigned &entity_topology_ref();
 	void setAnimation( const Animation &t ){ anim=t; }
 	void setAnimator( Animator *t );
 

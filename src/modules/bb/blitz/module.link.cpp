@@ -49,6 +49,7 @@ BBMODULE_LINK( blitz ){
 	rtSym( "_bbObjEachNext2","_bbObjEachNext2",_bbObjEachNext2 );
 	rtSym( "_bbObjToStr","_bbObjToStr",_bbObjToStr );
 	rtSym( "_bbObjToHandle","_bbObjToHandle",_bbObjToHandle );
+	rtSym( "_bbFuncPtr","_bbFuncPtr",_bbFuncPtr );
 	rtSym( "_bbObjFromHandle","_bbObjFromHandle",_bbObjFromHandle );
 	rtSym( "_bbNullObjEx","_bbNullObjEx",_bbNullObjEx );
 	rtSym( "_bbRestore","_bbRestore",_bbRestore );

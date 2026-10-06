@@ -354,6 +354,8 @@ int main( int argc,char *argv[] ){
 			quiet=veryquiet=true;
 		}else if( t=="-c" ){
 			compileonly=true;
+		}else if( t=="-ns" ){
+			extern bool bb_nullsafe;bb_nullsafe=true;
 		}else if( t=="-d" ){
 			debug=true;
 		}else if( t=="-j" ){

@@ -96,21 +96,70 @@ bool World::hitTest( const Line &line,float radius,Object *obj,const Transform &
 	return false;
 }
 
-bool World::checkLOS( Object *src,Object *dest ){
+// cheap world-space bounding-box rejection of a segment against a mesh object (full polygon test only on a hit)
+static bool rayMissesObject( const Line &line,float radius,Object *obj ){
+	if( obj->getPickGeometry()!=World::COLLISION_METHOD_POLYGON ) return false;
+	Model *m=obj->getModel();
+	MeshModel *mm=m ? m->getMeshModel() : 0;
+	if( !mm ) return false;
+	const Box &lb=mm->getBox();
+	if( lb.a.x>lb.b.x ) return true;
+	Box b=obj->getWorldTform()*lb;
+	float t0=0,t1=1;
+	const float o[3]={line.o.x,line.o.y,line.o.z},d[3]={line.d.x,line.d.y,line.d.z};
+	const float lo[3]={b.a.x-radius,b.a.y-radius,b.a.z-radius},hi[3]={b.b.x+radius,b.b.y+radius,b.b.z+radius};
+	for( int k=0;k<3;++k ){
+		if( d[k]>-1e-9f && d[k]<1e-9f ){
+			if( o[k]<lo[k] || o[k]>hi[k] ) return true;
+		}else{
+			float a=(lo[k]-o[k])/d[k],c=(hi[k]-o[k])/d[k];
+			if( a>c ){ float t=a;a=c;c=t; }
+			if( a>t0 ) t0=a;
+			if( c<t1 ) t1=c;
+			if( t0>t1 ) return true;
+		}
+	}
+	return false;
+}
 
-	enumEnabled();
+extern unsigned entity_topology;
+static std::vector<Object*> _pickable;
+static unsigned _pickable_version=0;
+
+// enabled objects that have pick geometry; rebuilt only when the entity tree or a flag changed
+static const std::vector<Object*> &pickableObjects(){
+	if( _pickable_version!=entity_topology ){
+		enumEnabled();
+		_pickable.clear();
+		for( Object *o:_enabled ) if( o->getPickGeometry() ) _pickable.push_back( o );
+		_pickable_version=entity_topology;
+	}
+	return _pickable;
+}
+
+#include <chrono>
+static long los_calls=0,los_tests=0;static double los_ms=0;
+bool World::checkLOS( Object *src,Object *dest ){
+	auto t0=std::chrono::steady_clock::now();
+	struct Rep{ std::chrono::steady_clock::time_point t0;~Rep(){
+		los_ms+=std::chrono::duration<double,std::milli>( std::chrono::steady_clock::now()-t0 ).count();
+		if( ++los_calls%500==0 && getenv( "BB_LOS_STATS" ) ) fprintf( stderr,"[los] calls %ld tests %ld ms %.0f%c",los_calls,los_tests,los_ms,10 );
+	} } rep={t0};
 
 	Object *coll_obj=0;
 	Collision curr_coll;
 
 	Line line( src->getWorldPosition(),dest->getWorldPosition()-src->getWorldPosition() );
 
+	const std::vector<Object*> &pick=pickableObjects();
 	std::vector<Object*>::const_iterator it;
 
-	for( it=_enabled.begin();it!=_enabled.end();++it ){
+	for( it=pick.begin();it!=pick.end();++it ){
 		Object *obj=*it;
 
 		if( obj==src || obj==dest || !obj->getPickGeometry() || !obj->getObscurer() ) continue;
+		if( rayMissesObject( line,0,obj ) ) continue;
+		++los_tests;
 
 		if( hitTest( line,0,obj,obj->getWorldTform(),obj->getPickGeometry(),&curr_coll ) ){
 			return false;
@@ -121,15 +170,16 @@ bool World::checkLOS( Object *src,Object *dest ){
 
 Object *World::traceRay( const Line &line,float radius,ObjCollision *curr_coll ){
 
-	enumEnabled();
+	const std::vector<Object*> &pick=pickableObjects();
 
 	Object *coll_obj=0;
 
 	std::vector<Object*>::const_iterator it;
-	for( it=_enabled.begin();it!=_enabled.end();++it ){
+	for( it=pick.begin();it!=pick.end();++it ){
 		Object *obj=*it;
 
 		if( !obj->getPickGeometry() ) continue;
+		if( rayMissesObject( line,radius,obj ) ) continue;
 
 		if( hitTest( line,radius,obj,obj->getWorldTform(),obj->getPickGeometry(),&curr_coll->collision ) ){
 			coll_obj=obj;

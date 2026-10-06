@@ -249,8 +249,33 @@ typedef nlohmann::json Json;
 
 static Json *J( bb_int_t v ){ return (Json*)(intptr_t)v; }
 
+// JSONC: drop // and /* */ comments and trailing commas outside strings
+static std::string stripJsonc( const std::string &t ){
+	std::string o;o.reserve( t.size() );
+	bool str=false;
+	for( size_t i=0;i<t.size();++i ){
+		char c=t[i];
+		if( str ){
+			o+=c;
+			if( c==92 && i+1<t.size() ) o+=t[++i];
+			else if( c=='"' ) str=false;
+			continue;
+		}
+		if( c=='"' ){ str=true;o+=c;continue; }
+		if( c=='/' && i+1<t.size() && t[i+1]=='/' ){ while( i<t.size() && t[i]!=10 ) ++i;o+=(char)10;continue; }
+		if( c=='/' && i+1<t.size() && t[i+1]=='*' ){ i+=2;while( i+1<t.size() && !(t[i]=='*' && t[i+1]=='/') ) ++i;++i;continue; }
+		if( c==',' ){
+			size_t j=i+1;
+			while( j<t.size() && isspace( (unsigned char)t[j] ) ) ++j;
+			if( j<t.size() && (t[j]=='}' || t[j]==']') ) continue;
+		}
+		o+=c;
+	}
+	return o;
+}
+
 static bb_int_t jsonParse( const std::string &text ){
-	Json *doc=new Json( Json::parse( text,nullptr,false ) );
+	Json *doc=new Json( Json::parse( stripJsonc( text ),nullptr,false ) );
 	return (bb_int_t)(intptr_t)doc;
 }
 

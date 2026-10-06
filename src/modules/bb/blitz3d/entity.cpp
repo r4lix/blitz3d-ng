@@ -9,7 +9,11 @@ enum{
 	INVALID_WORLDTFORM=2
 };
 
+// bumped whenever the entity tree or an enable/pick flag changes: lets World cache its pickable-object list
+unsigned entity_topology=1;
+
 void Entity::remove(){
+	++entity_topology;
 	if( _parent ){
 		if( _parent->_children==this ) _parent->_children=_succ;
 		if( _parent->_last_child==this ) _parent->_last_child=_pred;
@@ -22,6 +26,7 @@ void Entity::remove(){
 }
 
 void Entity::insert(){
+	++entity_topology;
 	_succ=0;
 	if( _parent ){
 		if( (_pred=_parent->_last_child) ) _pred->_succ=this;
@@ -112,11 +117,11 @@ void Entity::setName( const std::string &t ){
 }
 
 void Entity::setVisible( bool visible ){
-	_visible=visible;
+	_visible=visible;++entity_topology;
 }
 
 void Entity::setEnabled( bool enabled ){
-	_enabled=enabled;
+	_enabled=enabled;++entity_topology;
 }
 
 void Entity::enumVisible( std::vector<Object*> &out ){

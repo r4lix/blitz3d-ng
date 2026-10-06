@@ -22,6 +22,9 @@
 #include <cstdarg>
 #include <iostream>
 
+// -ns: reading or writing a field of Null touches a zeroed scratch object instead of crashing (Blitz3D-TSS tolerates it)
+bool bb_nullsafe=false;
+
 Codegen_LLVM::Codegen_LLVM( bool debug ):debug(debug),breakBlock(0) {
 	llvm::InitializeNativeTarget();
 	llvm::InitializeNativeTargetAsmPrinter();
