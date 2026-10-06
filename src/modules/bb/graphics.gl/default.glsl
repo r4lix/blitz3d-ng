@@ -10,6 +10,8 @@ layout(std140) uniform BBRenderState {
   uniform vec3 color;
   uniform int texenabled;
   uniform vec2 scale;
+  uniform float flipy;
+  uniform float pad_;
 } RS;
 
 struct BBPerVertex{
@@ -30,7 +32,8 @@ void main() {
 
   v_position *= RS.scale;
 
-  v_position.y = RS.res.y - v_position.y;
+  // the window's rows run bottom-up; a texture canvas is stored top row first, so it is not flipped
+  if( RS.flipy<0.5 ) v_position.y = RS.res.y - v_position.y;
   v_position /= RS.res;
 
   v_position = v_position * 2.0 - 1.0;

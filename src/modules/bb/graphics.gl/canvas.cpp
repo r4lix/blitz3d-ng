@@ -27,6 +27,7 @@ struct UniformState{
 	float color[3];
 	int texenabled;
 	float scale[2];
+	float flipy,pad;
 };
 
 struct Vertex{
@@ -35,7 +36,7 @@ struct Vertex{
 };
 
 static
-bool makeProgram( ContextResources *res,float sx,float sy,float tx,float ty,bool tex_enabled,float resx,float resy,float x,float y,float width,float height,float color[3] ){
+bool makeProgram( ContextResources *res,float sx,float sy,float tx,float ty,bool tex_enabled,float resx,float resy,float x,float y,float width,float height,float color[3],bool texCanvas ){
 	if( !glIsProgram( res->default_program ) ){
 		// LOGD( "rebuilding 2d shader...\n" );
 
@@ -63,6 +64,10 @@ bool makeProgram( ContextResources *res,float sx,float sy,float tx,float ty,bool
 	us.xywh[0]=x;us.xywh[1]=y;us.xywh[2]=width;us.xywh[3]=height;
 	us.color[0]=color[0];us.color[1]=color[1];us.color[2]=color[2];
 	us.scale[0]=sx;us.scale[1]=sy;
+	us.flipy=texCanvas ? 1.0f : 0.0f;
+	// not flipping reverses the quads' winding, so a face-culling state left over from the 3D
+	// renderer would drop them (the 3D renderer turns culling back on when it starts a frame)
+	if( texCanvas ) GL( glDisable( GL_CULL_FACE ) );
 
 	if( res->ubo ){
 		GL( glBindBuffer( GL_UNIFORM_BUFFER,res->ubo ) );
@@ -200,7 +205,7 @@ void GLCanvas::plot( int x,int y ){
 	GL( glEnable(GL_PROGRAM_POINT_SIZE) );
 #endif
 
-	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,x,y,1.0,1.0,color );
+	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,x,y,1.0,1.0,color,isTexCanvas() );
 
 	GL( glBindVertexArray( res->plot_array ) );
 	GL( glDrawArrays( GL_POINTS,0,1 ) );
@@ -223,7 +228,7 @@ void GLCanvas::line( int x,int y,int x2,int y2 ){
 	GL( glBindBuffer( GL_ARRAY_BUFFER,res->line_buffer ) );
 	GL( glBufferData( GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_DYNAMIC_DRAW ) );
 
-	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,0.0,0.0,1.0,1.0,color );
+	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,0.0,0.0,1.0,1.0,color,isTexCanvas() );
 
 	GL( glBindVertexArray( res->line_array ) );
 	GL( glDrawArrays( GL_LINES,0,2 ) );
@@ -270,7 +275,7 @@ void GLCanvas::quad( int x,int y,int w,int h,bool solid,bool texenabled,float tx
 		GL( glBindBuffer( GL_ARRAY_BUFFER,0 ) );
 	}
 
-	makeProgram( res,scale_x,scale_y,tx,ty,texenabled,width,height,x,y,w,h,color );
+	makeProgram( res,scale_x,scale_y,tx,ty,texenabled,width,height,x,y,w,h,color,isTexCanvas() );
 
 	int i=solid?0:1;
 	GL( glBindVertexArray( res->quad_array[i] ) );
@@ -304,7 +309,7 @@ void GLCanvas::oval( int x,int y,int w,int h,bool solid ){
 		initArrays( 1,&res->oval_buffer,&res->oval_array );
 	}
 
-	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,0.0,0.0,1.0,1.0,color );
+	makeProgram( res,scale_x,scale_y,1.0,1.0,false,width,height,0.0,0.0,1.0,1.0,color,isTexCanvas() );
 
 	GL( glBindBuffer( GL_ARRAY_BUFFER,res->oval_buffer ) );
 	GL( glBufferData( GL_ARRAY_BUFFER,sizeof(Vertex)*verts.size(),verts.data(),GL_DYNAMIC_DRAW ) );
@@ -391,7 +396,7 @@ void GLCanvas::text( int x,int y,const std::string &t ){
 		initArrays( 1,&res->text_buffer,&res->text_array );
 	}
 
-	makeProgram( res,scale_x,scale_y,1.0,1.0,true,width,height,0.0,0.0,1.0,1.0,color );
+	makeProgram( res,scale_x,scale_y,1.0,1.0,true,width,height,0.0,0.0,1.0,1.0,color,isTexCanvas() );
 
 	GL( glBindBuffer( GL_ARRAY_BUFFER,res->text_buffer ) );
 	GL( glBufferData( GL_ARRAY_BUFFER,sizeof(Vertex)*verts.size(),verts.data(),GL_DYNAMIC_DRAW ) );

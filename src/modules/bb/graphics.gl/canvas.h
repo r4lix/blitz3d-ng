@@ -26,6 +26,8 @@ protected:
 	bool pixmap_locked,pixmap_dirty;
 
 	int pixelRow( int y )const;
+	// texture-backed canvases are stored top row first (like loaded images), the window bottom row first
+	bool isTexCanvas()const{ return !(framebuffer==0 && (mode==GL_FRONT || mode==GL_BACK)); }
 	BBPixmap *pixmap;
 	bool dirty;
 
