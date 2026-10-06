@@ -73,10 +73,16 @@ void ForEachNode::translate2( Codegen_LLVM *g ){
 
 	g->builder->SetInsertPoint( loop );
 
+	auto nextBlk=llvm::BasicBlock::Create( *g->context,"foreach_next",func );
 	auto oldBreakBlock=g->breakBlock;
+	auto oldContinueBlock=g->continueBlock;
 	g->breakBlock=cont;
+	g->continueBlock=nextBlk;
 	stmts->translate2( g );
 	g->breakBlock=oldBreakBlock;
+	g->continueBlock=oldContinueBlock;
+	g->builder->CreateBr( nextBlk );
+	g->builder->SetInsertPoint( nextBlk );
 
 	// debug( nextPos,g );
 	g->builder->CreateCondBr( g->builder->CreateTruncOrBitCast( g->CallIntrinsic( objNext,ity,1,l ),bty ),loop,cont );

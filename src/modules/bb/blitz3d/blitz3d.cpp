@@ -272,16 +272,20 @@ BBLIB void BBCALL bbClearCollisions(){
 
 BBLIB void BBCALL bbCollisions( bb_int_t src_type,bb_int_t dest_type,bb_int_t method,bb_int_t response ){
 	debug3d();
+	if( response==-1 ){
+		// TSS form Collisions( src,dest,response ): ellipsoid-to-ellipsoid between equal types, else ellipsoid-to-polygon
+		response=method;method=src_type==dest_type ? 1 : 2;
+	}
 	world->addCollision( src_type,dest_type,method,response );
 }
 
 static int update_ms;
 
-BBLIB void BBCALL bbUpdateWorld( bb_float_t elapsed ){
+BBLIB void BBCALL bbUpdateWorld( bb_float_t elapsed,bb_float_t phys_dt ){
 	debug3d();
 
 #ifndef BETA
-	world->update( elapsed );
+	world->update( elapsed,phys_dt<0?elapsed/60.0f:phys_dt );
 	return;
 #else
 	update_ms=bbMilliSecs();
@@ -295,12 +299,12 @@ BBLIB void BBCALL bbCaptureWorld(){
 	world->capture();
 }
 
-BBLIB void BBCALL bbRenderWorld( bb_float_t tween ){
+BBLIB void BBCALL bbRenderWorld( bb_float_t tween,Camera *only,bb_int_t a,bb_int_t b ){
 	debug3d();
 
 #ifndef BETA
 	tri_count=bbScene->getTrianglesDrawn();
-	world->render( tween );
+	world->render( tween,only );
 	tri_count=bbScene->getTrianglesDrawn()-tri_count;
 	return;
 #else
@@ -567,7 +571,7 @@ BBLIB bb_float_t BBCALL bbGetBrushAlpha( Brush *b ){
 	return b->getAlpha( );
 }
 
-BBLIB void BBCALL bbBrushShininess( Brush *b,bb_float_t n ){
+BBLIB void BBCALL bbBrushShininess( Brush *b,bb_float_t n,bb_float_t extra ){
 	debugBrush(b);
 	b->setShininess( n );
 }
@@ -736,7 +740,7 @@ BBLIB void BBCALL bbAddMesh( MeshModel *src,MeshModel *dest ){
 	dest->add( *src );
 }
 
-BBLIB void BBCALL bbUpdateNormals( MeshModel *m ){
+BBLIB void BBCALL bbUpdateNormals( MeshModel *m,bb_int_t smooth ){
 	debugMesh(m);
 	m->updateNormals();
 }
@@ -797,7 +801,7 @@ BBLIB Surface * BBCALL bbFindSurface( MeshModel *m,Brush *b ){
 	return m->findSurface(*b);
 }
 
-BBLIB Surface * BBCALL bbCreateSurface( MeshModel *m,Brush *b ){
+BBLIB Surface * BBCALL bbCreateSurface( MeshModel *m,Brush *b,bb_int_t dynamic ){
 	if( bb_env.debug ){ debugMesh(m);if( b ) debugBrush(b); }
 	Surface *s=b ? m->createSurface( *b ) : m->createSurface( Brush() );
 	return s;
@@ -1614,7 +1618,7 @@ BBLIB void BBCALL bbEntityAlpha( Model *m,bb_float_t alpha ){
 	m->setAlpha( alpha );
 }
 
-BBLIB void BBCALL bbEntityShininess( Model *m,bb_float_t shininess ){
+BBLIB void BBCALL bbEntityShininess( Model *m,bb_float_t shininess,bb_float_t extra ){
 	debugModel(m);
 	m->setShininess( shininess );
 }
@@ -1653,17 +1657,17 @@ BBLIB void BBCALL bbEntityOrder( Object *o,bb_int_t n ){
 //////////////////////////////
 // ENTITY PROPERTY COMMANDS //
 //////////////////////////////
-BBLIB bb_float_t BBCALL bbEntityX( Entity *e,bb_int_t global ){
+BBLIB bb_float_t BBCALL bbEntityX( Entity *e,bb_int_t global,bb_float_t tween ){
 	debugEntity(e);
 	return global ? e->getWorldPosition().x : e->getLocalPosition().x;
 }
 
-BBLIB bb_float_t BBCALL bbEntityY( Entity *e,bb_int_t global ){
+BBLIB bb_float_t BBCALL bbEntityY( Entity *e,bb_int_t global,bb_float_t tween ){
 	debugEntity(e);
 	return global ? e->getWorldPosition().y : e->getLocalPosition().y;
 }
 
-BBLIB bb_float_t BBCALL bbEntityZ( Entity *e,bb_int_t global ){
+BBLIB bb_float_t BBCALL bbEntityZ( Entity *e,bb_int_t global,bb_float_t tween ){
 	debugEntity(e);
 	return global ? e->getWorldPosition().z : e->getLocalPosition().z;
 }
@@ -1992,7 +1996,7 @@ BBLIB BBStr * BBCALL bbEntityClass( Entity *e ){
 	return new BBStr(p);
 }
 
-BBLIB void BBCALL bbClearWorld( bb_int_t e,bb_int_t b,bb_int_t t ){
+BBLIB void BBCALL bbClearWorld( bb_int_t e,bb_int_t b,bb_int_t t,bb_int_t fx ){
 	if( e ){
 		while( Entity::orphans() ) bbFreeEntity( Entity::orphans() );
 	}
@@ -2028,12 +2032,14 @@ void blitz3d_open( BBGraphics *graphics ){
 
 void blitz3d_close(){
 	if( !bbScene ) return;
-	bbClearWorld( 1,1,1 );
+	bbClearWorld( 1,1,1,0 );
 	Texture::clearFilters();
 	loader_mat_map.clear();
 	delete world;
 	bbScene=0;
 }
+
+#include "tss.inc"
 
 BBMODULE_CREATE( blitz3d ){
 	tri_count=0;

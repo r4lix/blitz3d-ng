@@ -52,7 +52,12 @@ invalid( INVALID_LOCALTFORM|INVALID_WORLDTFORM ){
 	insert();
 }
 
+std::map<Entity*,void(*)(Entity*)> *entity_destructors=0;
 Entity::~Entity(){
+	if( entity_destructors ){
+		auto it=entity_destructors->find( this );
+		if( it!=entity_destructors->end() ){ auto f=it->second;entity_destructors->erase( it );f( this ); }
+	}
 	while( children() ) delete children();
 	remove();
 }

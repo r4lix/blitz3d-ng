@@ -110,6 +110,60 @@ bb_int_t BBCALL bbZlibWapi_ZipOpenNewFileInZip3( bb_int_t zip,BBStr *name,bb_int
 bb_int_t BBCALL bbZlibWapi_ZipWriteFileInZip( bb_int_t zip,bb_int_t data,bb_int_t length );
 bb_int_t BBCALL bbZlibWapi_ZipCloseFileInZip( bb_int_t zip );
 
+// UE Reborn: IniController (BlitzToolbox)
+void BBCALL bbIniClearBuffer( BBStr *path );
+void BBCALL bbIniWriteBuffer_( BBStr *path,bb_int_t clear );
+BBStr * BBCALL bbIniGetString_( BBStr *path,BBStr *section,BBStr *key,BBStr *def,bb_int_t allow );
+bb_int_t BBCALL bbIniGetInt_( BBStr *path,BBStr *section,BBStr *key,bb_int_t def,bb_int_t allow );
+bb_float_t BBCALL bbIniGetFloat_( BBStr *path,BBStr *section,BBStr *key,bb_float_t def,bb_int_t allow );
+BBStr * BBCALL bbIniGetBufferString_( BBStr *path,BBStr *section,BBStr *key,BBStr *def );
+void BBCALL bbIniWriteString_( BBStr *path,BBStr *section,BBStr *key,BBStr *value,bb_int_t update );
+void BBCALL bbIniWriteInt_( BBStr *path,BBStr *section,BBStr *key,bb_int_t value,bb_int_t update );
+void BBCALL bbIniWriteFloat_( BBStr *path,BBStr *section,BBStr *key,bb_float_t value,bb_int_t update );
+bb_int_t BBCALL bbIniSectionExist_( BBStr *path,BBStr *section,bb_int_t allow );
+bb_int_t BBCALL bbIniKeyExist_( BBStr *path,BBStr *section,BBStr *key,bb_int_t allow );
+
+// UE Reborn: S2IMap
+bb_int_t BBCALL bbCreateS2IMap(  );
+bb_int_t BBCALL bbS2IMapSize( bb_int_t map );
+void BBCALL bbS2IMapErase( bb_int_t map,BBStr *key );
+void BBCALL bbS2IMapSet( bb_int_t map,BBStr *key,bb_int_t value );
+bb_int_t BBCALL bbS2IMapGet( bb_int_t map,BBStr *key );
+bb_int_t BBCALL bbS2IMapContains( bb_int_t map,BBStr *key );
+void BBCALL bbClearS2IMap( bb_int_t map );
+void BBCALL bbDestroyS2IMap( bb_int_t map );
+
+// UE Reborn: RapidBson
+bb_int_t BBCALL bbJsonParseFromString( BBStr *json );
+bb_int_t BBCALL bbJsonParseFromFile( BBStr *path );
+bb_int_t BBCALL bbJsonHasParseError( bb_int_t document );
+void BBCALL bbJsonFreeDocument( bb_int_t document );
+bb_int_t BBCALL bbJsonGetValue( bb_int_t object,BBStr *name );
+bb_int_t BBCALL bbJsonIsString( bb_int_t value );
+bb_int_t BBCALL bbJsonIsFloat( bb_int_t value );
+bb_int_t BBCALL bbJsonIsArray( bb_int_t value );
+bb_int_t BBCALL bbJsonIsNull( bb_int_t value );
+BBStr * BBCALL bbJsonGetString( bb_int_t value );
+bb_int_t BBCALL bbJsonGetInt( bb_int_t value );
+bb_float_t BBCALL bbJsonGetFloat( bb_int_t value );
+bb_int_t BBCALL bbJsonGetBool( bb_int_t value );
+bb_int_t BBCALL bbJsonGetArray( bb_int_t value );
+bb_int_t BBCALL bbJsonGetArraySize( bb_int_t array );
+bb_int_t BBCALL bbJsonGetArrayValue( bb_int_t array,bb_int_t index );
+
+// UE Reborn: downloads, FreeImage, user32, uemp
+BBStr * BBCALL bbFindNextDirectory( BBStr *path,BBStr *directory,BBStr *default );
+void BBCALL bbDownloadFileThread( BBStr *url,BBStr *file );
+bb_int_t BBCALL bbGetDownloadFileThreadSize(  );
+bb_int_t BBCALL bbFI_Load( bb_int_t type,BBStr *file,bb_int_t mode );
+bb_int_t BBCALL bbFI_Save( bb_int_t type,bb_int_t bitmap,BBStr *file,bb_int_t flags );
+bb_int_t BBCALL bbFI_Unload( bb_int_t bitmap );
+bb_int_t BBCALL bbFI_GetFIFFromFilename( BBStr *file );
+bb_int_t BBCALL bbFI_Rescale( bb_int_t bitmap,bb_int_t width,bb_int_t height,bb_int_t filter );
+bb_int_t BBCALL bbMemory_PeekInt( bb_int_t pointer );
+void BBCALL bbMemory_PokeInt( bb_int_t pointer,bb_int_t value );
+bb_int_t BBCALL bbapi_GetForegroundWindow(  );
+
 #ifdef __cplusplus
 }
 #endif

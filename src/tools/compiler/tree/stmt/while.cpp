@@ -59,9 +59,12 @@ void WhileNode::translate2( Codegen_LLVM *g ){
 	}
 
 	auto oldBreakBlock=g->breakBlock;
+	auto oldContinueBlock=g->continueBlock;
 	g->breakBlock=next;
+	g->continueBlock=loop;
 	stmts->translate2( g );
 	g->breakBlock=oldBreakBlock;
+	g->continueBlock=oldContinueBlock;
 
 	g->builder->CreateBr( loop );
 

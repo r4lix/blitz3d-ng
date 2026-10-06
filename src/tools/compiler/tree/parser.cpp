@@ -12,6 +12,7 @@
 #include "expr/after.h"
 #include "expr/arith_expr.h"
 #include "expr/before.h"
+#include "expr/funcptr.h"
 #include "expr/bin_expr.h"
 #include "expr/call.h"
 #include "expr/cast.h"
@@ -332,6 +333,11 @@ void Parser::parseStmtSeq( StmtSeqNode *stmts,int scope ){
 				}
 			}
 			break;
+		case CONTINUE:
+			{
+				toker->next();ExitNode *n=d_new ExitNode();n->isContinue=true;result=n;
+			}
+			break;
 		case EXIT:
 			{
 				toker->next();result=d_new ExitNode();
@@ -634,7 +640,7 @@ ExprNode *Parser::parseExpr1( bool opt ){
 	if( !lhs ) return 0;
 	for(;;){
 		int c=toker->curr();
-		if( c!=AND && c!=OR && c!=XOR ) return lhs.release();
+		if( c!=AND && c!=OR && c!=XOR && c!=LOR && c!=LAND ) return lhs.release();
 		toker->next();ExprNode *rhs=parseExpr2( false );
 		lhs=d_new BinExprNode( c,lhs.release(),rhs );
 	}
@@ -731,6 +737,10 @@ ExprNode *Parser::parseUniExpr( bool opt ){
 		toker->next();
 		result=parseUniExpr( false );
 		result=d_new ObjectHandleNode( result );
+		break;
+	case '@':
+		toker->next();
+		result=d_new FuncPtrNode( parseIdent() );
 		break;
 	case BEFORE:
 		toker->next();

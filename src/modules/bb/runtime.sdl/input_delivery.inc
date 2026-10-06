@@ -334,22 +334,36 @@ struct PadEmulation{
 				if( f>=0 && tickNow<padActiveUntil ){ bbPadFocus=bbPadMenuRects[f];bbPadFocusValid=true; }
 			}
 
+			// time between two passes: idle() runs a varying number of times per game frame, so anything
+			// that moves "per pass" would depend on how busy the game is
+			static Uint32 dragLast=0;
+			static float dragCarry=0;
+			float dragDt=dragLast ? (tickNow-dragLast)/1000.0f : 0.016f;
+			dragLast=tickNow;
+			if( dragDt>0.1f ) dragDt=0.1f;
 			for( int k=0;k<4;k++ ){
 				bool fire=false;
 				if( dirNow[k] && !prevDir[k] ){ fire=true;dirHeldSince[k]=tickNow;dirRepeat[k]=tickNow; }
 				else if( dirNow[k] && tickNow-dirHeldSince[k]>380 && tickNow-dirRepeat[k]>170 ){ fire=true;dirRepeat[k]=tickNow; }
 				prevDir[k]=dirNow[k];
 				if( menu && aBtn && (k==2 || k==3) ){
-					// dragging a slider: nudge the pointer sideways while A is held
+					// dragging a slider: nudge the pointer sideways while A is held. The sliders are only
+					// 100-150 menu pixels wide, so this is a slow, time-based crawl (about 2/3 of the stick's top speed).
 					if( dirNow[k] ){
-						px+=k==3 ? 5.0f : -5.0f;
-						if( px<0 ) px=0;
-						deliverMouseMove( (int)px,(int)py );
+						dragCarry+=(k==3 ? 1.0f : -1.0f)*bbSettingFloat( "pad_slider_speed",45.0f )*0.65f*dragDt;
+						int step=(int)dragCarry;
+						dragCarry-=step;
+						if( step ){
+							px+=step;
+							if( px<0 ) px=0;
+							deliverMouseMove( (int)px,(int)py );
+						}
 					}
 				}else if( fire ){
 					if( inv ) moveFocus( k ); else moveMenuFocus( k );
 				}
 			}
+			if( !dirNow[2] && !dirNow[3] ) dragCarry=0;
 			if( inv && bBtn ) want[SDL_SCANCODE_TAB]=true;
 			if( menu && bBtn ) want[SDL_SCANCODE_ESCAPE]=true;
 		}else{
@@ -406,12 +420,18 @@ struct PadEmulation{
 
 		float rx=axis( SDL_CONTROLLER_AXIS_RIGHTX ),ry=axis( SDL_CONTROLLER_AXIS_RIGHTY );
 		if( padUi ){
-			// menus and inventories: the left stick moves the pointer (the right stick still does too)
-			if( fabsf( lx )>fabsf( rx ) ) rx=lx;
-			if( fabsf( ly )>fabsf( ry ) ) ry=ly;
-			// dragging a slider: the game only follows the pointer while it stays on the slider's line,
-			// so holding A in a menu locks the pointer vertically (left/right on the stick or d-pad drags)
-			if( !inv && aBtn ) ry=0;
+			if( inv ){
+				// inventory: the left stick only. The right stick would also move the cursor, which made
+				// it easy to drag an item by brushing it while using the left one.
+				rx=lx;ry=ly;
+			}else{
+				// menus: the left stick moves the pointer (the right stick still does too)
+				if( fabsf( lx )>fabsf( rx ) ) rx=lx;
+				if( fabsf( ly )>fabsf( ry ) ) ry=ly;
+				// dragging a slider: the game only follows the pointer while it stays on the slider's line,
+				// so holding A in a menu locks the pointer vertically (left/right on the stick or d-pad drags)
+				if( aBtn ) ry=0;
+			}
 		}
 		const float deadzone=bbSettingFloat( "pad_deadzone",0.18f ),curve=bbSettingFloat( "pad_curve",2.0f );
 		auto shape=[deadzone,curve]( float v ){
@@ -425,6 +445,9 @@ struct PadEmulation{
 		float speed=bbSettingFloat( "pad_speed",650.0f );
 		if( const char *e=getenv( "BB_PAD_SPEED" ) ) speed=(float)atof( e );
 		if( speed<50 ) speed=650.0f;
+		// dragging a slider (menu, A held): the sliders are 100-150 menu pixels wide, at the aiming speed
+		// a full sweep takes a tenth of a second. Crawl instead (settings key pad_slider_speed, px/s).
+		if( padUi && !inv && aBtn ) speed=bbSettingFloat( "pad_slider_speed",45.0f );
 		float dx=shape( rx )*speed*dt+carryX,dy=shape( ry )*speed*dt+carryY;
 		int ix=(int)dx,iy=(int)dy;
 		carryX=dx-ix;carryY=dy-iy;

@@ -570,3 +570,15 @@ BBMODULE_DESTROY( blitz ){
 	object_map.clear();
 	return true;
 }
+
+
+// function pointers (@Func in Blitz3D-TSS): the 32-bit "pointer" is an index into this table
+static std::vector<void*> funcptr_table;
+bb_int_t BBCALL _bbFuncPtr( void *fn ){
+	for( size_t k=0;k<funcptr_table.size();++k ) if( funcptr_table[k]==fn ) return (bb_int_t)k+1;
+	funcptr_table.push_back( fn );
+	return (bb_int_t)funcptr_table.size();
+}
+void *bbFuncPtrResolve( bb_int_t id ){
+	return id>0 && (size_t)id<=funcptr_table.size() ? funcptr_table[id-1] : 0;
+}

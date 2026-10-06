@@ -8,12 +8,13 @@ BBMODULE_LINK( audio ){
 	rtSym( "%LoadSound$filename","bbLoadSound",bbLoadSound );
 	rtSym( "%Load3DSound$filename","bbLoad3DSound",bbLoad3DSound );
 	rtSym( "FreeSound%sound","bbFreeSound",bbFreeSound );
-	rtSym( "LoopSound%sound","bbLoopSound",bbLoopSound );
+	rtSym( "LoopSound%sound%loop=1","bbLoopSound",bbLoopSound );
 	rtSym( "SoundPitch%sound%pitch","bbSoundPitch",bbSoundPitch );
 	rtSym( "SoundVolume%sound#volume","bbSoundVolume",bbSoundVolume );
 	rtSym( "SoundPan%sound#pan","bbSoundPan",bbSoundPan );
-	rtSym( "%PlaySound%sound","bbPlaySound",bbPlaySound );
-	rtSym( "%PlayMusic$filename","bbPlayMusic",bbPlayMusic );
+	rtSym( "%PlaySound%sound#volume=-2","bbPlaySound",bbPlaySound );
+	rtSym( "%PlayMusic$filename%mode=0#volume=-2","bbPlayMusic",bbPlayMusic );
+	rtSym( "ChannelReverb%channel","bbChannelReverb",bbChannelReverb );
 	rtSym( "%PlayCDTrack%track%mode=1","bbPlayCDTrack",bbPlayCDTrack );
 	rtSym( "StopChannel%channel","bbStopChannel",bbStopChannel );
 	rtSym( "PauseChannel%channel","bbPauseChannel",bbPauseChannel );

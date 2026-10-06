@@ -11,6 +11,8 @@
 
 #include <switch.h>
 
+#include "overlay.nx.h"
+
 class StdioDebugger : public Debugger{
 private:
 	bool trace;
@@ -89,6 +91,20 @@ extern "C" void __libnx_exception_handler( ThreadExceptionDump *ctx ){
 	svcExitProcess();
 }
 
+// "End", Stop and a close request from the system all arrive as RTEX( 0 ), a thrown bbEx. On the
+// Switch that exception cannot unwind through the compiled program's frames, so it ended in
+// std::terminate and the OS reported "closed because an error occurred". bbEx's constructor calls
+// this instead (through bbNxEndHook, set in bbStart) and the program ends on the spot, the way a
+// retail game does: logs flushed, save data committed, then libnx's normal exit (services closed,
+// volumes unmounted). _exit skips the static destructors, which is where a late crash would come from.
+extern "C" void (*bbNxEndHook)();
+static void bbNxExit(){
+	fprintf( stderr,"exit: program ended\n" );
+	fflush( 0 );
+	nxOverlayCommit();
+	_exit( 0 );
+}
+
 extern "C"
 int BBCALL bbStart( int argc,char *argv[], BBMAIN bbMain ) {
 	// Programs started from hbmenu are given their own path ("sdmc:/switch/game/game.nro");
@@ -97,14 +113,22 @@ int BBCALL bbStart( int argc,char *argv[], BBMAIN bbMain ) {
 	std::string dir="sdmc:/switch/scpcb/";
 	size_t slash=exe.find_last_of( '/' );
 	if( slash!=std::string::npos ) dir=exe.substr( 0,slash+1 );
-	chdir( dir.c_str() );
 
-	// There is no console to read, so keep a log on the SD card (flushed on every write).
-	freopen( "scpcb.log","w",stderr );
-	freopen( "scpcb.log","a",stdout );
+	// Installed as a title (NSP) the game files are in the romfs and the saves in save data, both
+	// reached through the "ov:" device; started as an NRO everything is next to the NRO as before.
+	bbNxEndHook=bbNxExit;
+	bool installed=nxOverlayInit( dir.c_str() );
+	if( !installed ) chdir( dir.c_str() );
+
+	// There is no console to read, so keep a log on the SD card (flushed on every write). An
+	// installed title logs to the SD root, never into the save data.
+	std::string log=installed ? "sdmc:/scpcb.log" : "scpcb.log";
+	freopen( log.c_str(),"w",stderr );
+	freopen( log.c_str(),"a",stdout );
 	setvbuf( stderr,0,_IONBF,0 );
 	setvbuf( stdout,0,_IONBF,0 );
-	fprintf( stderr,"start: argv0=%s cwd=%s\n",exe.c_str(),dir.c_str() );
+	fprintf( stderr,"start: argv0=%s cwd=%s installed=%d\n",exe.c_str(),dir.c_str(),(int)installed );
+	fprintf( stderr,"overlay: %s\n",nxOverlayStatus() );
 	std::set_terminate( logTerminate );
 	setenv( "BB_TRACE_ERRORS","1",1 ); // runtime errors are printed as [bbEx] lines
 	// optional env.txt (KEY=VALUE per line) next to the NRO sets the debug variables

@@ -41,7 +41,7 @@ BBMODULE_LINK( graphics ){
 	rtSym( "%GraphicsWidth","bbGraphicsWidth",bbGraphicsWidth );
 	rtSym( "%GraphicsHeight","bbGraphicsHeight",bbGraphicsHeight );
 	rtSym( "%GraphicsDepth","bbGraphicsDepth",bbGraphicsDepth );
-	rtSym( "SetBuffer%buffer","bbSetBuffer",bbSetBuffer );
+	rtSym( "SetBuffer%buffer%depth=0","bbSetBuffer",bbSetBuffer );
 	rtSym( "%GraphicsBuffer","bbGraphicsBuffer",bbGraphicsBuffer );
 	rtSym( "%LoadBuffer%buffer$bmpfile","bbLoadBuffer",bbLoadBuffer );
 	rtSym( "%SaveBuffer%buffer$bmpfile","bbSaveBuffer",bbSaveBuffer );
@@ -57,7 +57,7 @@ BBMODULE_LINK( graphics ){
 	rtSym( "CopyRect%source_x%source_y%width%height%dest_x%dest_y%src_buffer=0%dest_buffer=0","bbCopyRect",bbCopyRect );
 	rtSym( "Origin%x%y","bbOrigin",bbOrigin );
 	rtSym( "Viewport%x%y%width%height","bbViewport",bbViewport );
-	rtSym( "Color%red%green%blue","bbColor",bbColor );
+	rtSym( "Color%red%green%blue%alpha=255","bbColor",bbColor );
 	rtSym( "GetColor%x%y","bbGetColor",bbGetColor );
 	rtSym( "%ColorRed","bbColorRed",bbColorRed );
 	rtSym( "%ColorGreen","bbColorGreen",bbColorGreen );
@@ -118,4 +118,7 @@ BBMODULE_LINK( graphics ){
 	rtSym( "Print$string=\"\"","bbPrint",bbPrint );
 	rtSym( "$Input$prompt=\"\"","bbInput",bbInput );
 	rtSym( "Locate%x%y","bbLocate",bbLocate );
+	rtSym( "%BufferWidth%buffer","bbBufferWidth",bbBufferWidth );
+	rtSym( "%BufferHeight%buffer","bbBufferHeight",bbBufferHeight );
+	rtSym( "CopyRectStretch%source_x%source_y%source_w%source_h%dest_x%dest_y%dest_w%dest_h%src_buffer=0%dest_buffer=0","bbCopyRectStretch",bbCopyRectStretch );
 }

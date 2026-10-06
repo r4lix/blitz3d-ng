@@ -5,7 +5,7 @@
 ///////////
 void ExitNode::semant( Environ *e ){
 	sem_brk=e->breakLabel;
-	if( !sem_brk.size() ) ex( "break must appear inside a loop" );
+	if( !sem_brk.size() ) ex( isContinue ? "continue must appear inside a loop" : "break must appear inside a loop" );
 }
 
 void ExitNode::translate( Codegen *g ){
@@ -19,7 +19,7 @@ void ExitNode::translate2( Codegen_LLVM *g ){
 	auto exit=llvm::BasicBlock::Create( *g->context,"exit",func );
 	g->builder->CreateBr( exit );
 	g->builder->SetInsertPoint( exit );
-	g->builder->CreateBr( g->breakBlock );
+	g->builder->CreateBr( isContinue ? g->continueBlock : g->breakBlock );
 
 	auto cont=llvm::BasicBlock::Create( *g->context,"exit",func );
 	g->builder->SetInsertPoint( cont );

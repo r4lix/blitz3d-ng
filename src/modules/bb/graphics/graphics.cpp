@@ -286,7 +286,7 @@ bb_int_t BBCALL bbAvailVidMem(){
 	return gx_graphics->getAvailVidmem();
 }
 
-void BBCALL bbSetBuffer( BBCanvas *buff ){
+void BBCALL bbSetBuffer( BBCanvas *buff,BBCanvas *depth ){
 	debugCanvas( buff );
 	if( gx_canvas ) gx_canvas->unset();
 	gx_canvas=buff;
@@ -312,7 +312,7 @@ static void graphics( int w,int h,int d,int flags ){
 	blitz2d_open();
 	BBCanvas *buff=(flags & BBGraphics::GRAPHICS_3D) ?
 		gx_graphics->getBackCanvas() : gx_graphics->getFrontCanvas();
-	bbSetBuffer( buff );
+	bbSetBuffer( buff,0 );
 }
 
 void BBCALL bbGraphics( bb_int_t w,bb_int_t h,bb_int_t d,bb_int_t mode ){
@@ -674,6 +674,24 @@ void BBCALL bbCopyRect( bb_int_t sx,bb_int_t sy,bb_int_t w,bb_int_t h,bb_int_t d
 	dest->blit( dx,dy,src,sx,sy,w,h,true );
 }
 
+bb_int_t BBCALL bbBufferWidth( BBCanvas *c ){ debugCanvas( c );return c->getWidth(); }
+bb_int_t BBCALL bbBufferHeight( BBCanvas *c ){ debugCanvas( c );return c->getHeight(); }
+
+// nearest-neighbour stretched copy between buffers (Blitz3D-TSS CopyRectStretch)
+void BBCALL bbCopyRectStretch( bb_int_t sx,bb_int_t sy,bb_int_t sw,bb_int_t sh,bb_int_t dx,bb_int_t dy,bb_int_t dw,bb_int_t dh,BBCanvas *src,BBCanvas *dest ){
+	if( src ) debugCanvas( src );else src=gx_canvas;
+	if( dest ) debugCanvas( dest );else dest=gx_canvas;
+	if( sw<=0 || sh<=0 || dw<=0 || dh<=0 ) return;
+	
+	for( int y=0;y<dh;++y ){
+		int py=sy+y*sh/dh;
+		for( int x=0;x<dw;++x ){
+			dest->setPixel( dx+x,dy+y,src->getPixel( sx+x*sw/dw,py ) );
+		}
+	}
+	
+}
+
 #define RED(_X_) ( ((_X_)>>16) & 0xff )
 #define GRN(_X_) ( ((_X_)>>8) & 0xff )
 #define BLU(_X_) ( (_X_) & 0xff )
@@ -830,7 +848,9 @@ void BBCALL bbViewport( bb_int_t x,bb_int_t y,bb_int_t w,bb_int_t h ){
 	gx_canvas->setViewport( x,y,w,h );
 }
 
-void BBCALL bbColor( bb_int_t r,bb_int_t g,bb_int_t b ){
+bb_int_t bb_color_alpha=255;
+void BBCALL bbColor( bb_int_t r,bb_int_t g,bb_int_t b,bb_int_t a ){
+	bb_color_alpha=a;
 	gx_canvas->setColor( curr_color=(r<<16)|(g<<8)|b );
 }
 
@@ -1028,7 +1048,7 @@ void BBCALL bbFreeImage( BBImage *i ){
 	const std::vector<BBCanvas*> &f=i->getFrames();
 	for( int k=0;k<f.size();++k ){
 		if( f[k]==gx_canvas ){
-			bbSetBuffer( gx_graphics->getFrontCanvas() );
+			bbSetBuffer( gx_graphics->getFrontCanvas(),0 );
 			break;
 		}
 	}
@@ -1203,7 +1223,7 @@ void BBCALL bbTFormImage( BBImage *i,bb_float_t a,bb_float_t b,bb_float_t c,bb_f
 	int k;
 	for( k=0;k<f.size();++k ){
 		if( f[k]==gx_canvas ){
-			bbSetBuffer( gx_graphics->getFrontCanvas() );
+			bbSetBuffer( gx_graphics->getFrontCanvas(),0 );
 			break;
 		}
 	}

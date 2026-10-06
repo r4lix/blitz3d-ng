@@ -72,6 +72,17 @@ public:
 	Animator *getAnimator()const{ return animator; }
 	Object *getLastCopy()const{ return last_copy; }
 
+	// rigid-body state (Blitz3D-TSS EntityPhysics & co), integrated by World::update on top of the Blitz collision pass
+	struct Phys{
+		bool on=false,kinematic=false,frozen=false;
+		float gravity=1,mass=1,friction=0.5f,restitution=0,lin_damp=0,ang_damp=0;
+		int awake=0;			// physics steps left before the body counts as asleep
+		Vector lin,ang;			// linear (units/s) and angular velocity
+		Vector ang_factor=Vector(1,1,1);
+		Vector start;			// world position before the step
+		float impulse=0;		// impact of the last step
+	} phys;
+
 private:
 	int coll_type;
 	int order;

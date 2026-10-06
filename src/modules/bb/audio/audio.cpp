@@ -33,10 +33,10 @@ void BBCALL bbFreeSound( BBSound *sound ){
 	gx_audio->freeSound( sound );
 }
 
-void BBCALL bbLoopSound( BBSound *sound ){
+void BBCALL bbLoopSound( BBSound *sound,bb_int_t loop ){
 	if( !sound ) return;
 	debugSound( sound );
-	sound->setLoop( true );
+	sound->setLoop( loop!=0 );
 }
 
 void BBCALL bbSoundPitch( BBSound *sound,bb_int_t pitch ){
@@ -57,16 +57,32 @@ void BBCALL bbSoundPan( BBSound *sound,bb_float_t pan ){
 	sound->setPan( pan );
 }
 
-BBChannel * BBCALL bbPlaySound( BBSound *sound ){
+// volume: -2 leaves the channel alone, below 0 starts it paused (the game resumes it), else sets the volume
+BBChannel * BBCALL bbPlaySound( BBSound *sound,bb_float_t volume ){
 	SLOWLOG("PlaySound","");
 	if( !sound ) return 0;
 	debugSound( sound );
-	return sound->play();
+	BBChannel *c=sound->play();
+	if( c && volume>-1.5f ){
+		if( volume<0 ) c->setPaused( true );
+		else c->setVolume( volume>1 ? 1 : volume );
+	}
+	return c;
 }
 
-BBChannel * BBCALL bbPlayMusic( BBStr *f ){
-	return playMusic( f,false );
+BBChannel * BBCALL bbPlayMusic( BBStr *f,bb_int_t mode,bb_float_t volume ){
+	BBChannel *c=playMusic( f,false );
+	if( c ){
+		if( mode&2 ) c->setLoop( true );
+		if( volume>-1.5f ){
+			if( volume<0 ) c->setPaused( true );
+			else c->setVolume( volume>1 ? 1 : volume );
+		}
+	}
+	return c;
 }
+
+void BBCALL bbChannelReverb( BBChannel *channel ){}
 
 BBChannel * BBCALL bbPlayCDTrack( bb_int_t track,bb_int_t mode ){
 	return gx_audio ? gx_audio->playCDTrack( track,mode ) : 0;

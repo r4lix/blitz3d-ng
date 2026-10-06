@@ -17,6 +17,7 @@ static void makeKeywords(){
 	alphaTokes["Gosub"]=GOSUB;
 	alphaTokes["Return"]=RETURN;
 	alphaTokes["Exit"]=EXIT;
+	alphaTokes["Continue"]=CONTINUE;
 	alphaTokes["If"]=IF;
 	alphaTokes["Then"]=THEN;
 	alphaTokes["Else"]=ELSE;
@@ -73,6 +74,8 @@ static void makeKeywords(){
 
 	alphaTokes["And"]=AND;
 	alphaTokes["Or"]=OR;
+	alphaTokes["Lor"]=LOR;
+	alphaTokes["Land"]=LAND;
 	alphaTokes["Xor"]=XOR;
 	alphaTokes["Not"]=NOT;
 	alphaTokes["Shl"]=SHL;

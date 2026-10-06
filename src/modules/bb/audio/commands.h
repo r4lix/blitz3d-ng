@@ -13,12 +13,13 @@ extern "C" {
 BBSound * BBCALL bbLoadSound( BBStr *filename );
 BBSound * BBCALL bbLoad3DSound( BBStr *filename );
 void BBCALL bbFreeSound( BBSound *sound );
-void BBCALL bbLoopSound( BBSound *sound );
+void BBCALL bbLoopSound( BBSound *sound,bb_int_t loop );
 void BBCALL bbSoundPitch( BBSound *sound,bb_int_t pitch );
 void BBCALL bbSoundVolume( BBSound *sound,bb_float_t volume );
 void BBCALL bbSoundPan( BBSound *sound,bb_float_t pan );
-BBChannel * BBCALL bbPlaySound( BBSound *sound );
-BBChannel * BBCALL bbPlayMusic( BBStr *filename );
+BBChannel * BBCALL bbPlaySound( BBSound *sound,bb_float_t volume );
+BBChannel * BBCALL bbPlayMusic( BBStr *filename,bb_int_t mode,bb_float_t volume );
+void BBCALL bbChannelReverb( BBChannel *channel );
 BBChannel * BBCALL bbPlayCDTrack( bb_int_t track,bb_int_t mode );
 void BBCALL bbStopChannel( BBChannel *channel );
 void BBCALL bbPauseChannel( BBChannel *channel );

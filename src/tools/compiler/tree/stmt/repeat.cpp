@@ -44,10 +44,13 @@ void RepeatNode::translate2( Codegen_LLVM *g ){
 	g->builder->SetInsertPoint( loop );
 
 	auto oldBreakBlock=g->breakBlock;
+	auto oldContinueBlock=g->continueBlock;
 	g->breakBlock=cont;
+	g->continueBlock=iter;
 	stmts->translate2( g );
 	g->builder->CreateBr( iter );
 	g->breakBlock=oldBreakBlock;
+	g->continueBlock=oldContinueBlock;
 
 	func->insert( func->end(),iter );
 	g->builder->SetInsertPoint( iter );

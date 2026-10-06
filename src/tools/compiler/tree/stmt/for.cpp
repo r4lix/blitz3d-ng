@@ -83,10 +83,16 @@ void ForNode::translate2( Codegen_LLVM *g ){
 	//the loop
 	g->builder->SetInsertPoint( loop );
 
+	auto step=llvm::BasicBlock::Create( *g->context,"for_step",func );
 	auto oldBreakBlock=g->breakBlock;
+	auto oldContinueBlock=g->continueBlock;
 	g->breakBlock=cont;
+	g->continueBlock=step;
 	stmts->translate2( g );
 	g->breakBlock=oldBreakBlock;
+	g->continueBlock=oldContinueBlock;
+	g->builder->CreateBr( step );
+	g->builder->SetInsertPoint( step );
 
 	//execute the step part
 	auto bop=ty==Type::int_type ? llvm::Instruction::BinaryOps::Add : llvm::Instruction::BinaryOps::FAdd;

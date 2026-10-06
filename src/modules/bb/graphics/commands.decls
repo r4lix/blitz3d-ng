@@ -47,7 +47,7 @@ GraphicsHeight%():"bbGraphicsHeight"
 GraphicsDepth%():"bbGraphicsDepth"
 
 ;buffer management
-SetBuffer( buffer.BBCanvas ):"bbSetBuffer"
+SetBuffer( buffer.BBCanvas,depth.BBCanvas=0 ):"bbSetBuffer"
 GraphicsBuffer.BBCanvas():"bbGraphicsBuffer"
 LoadBuffer%( buffer.BBCanvas,bmpfile$ ):"bbLoadBuffer"
 SaveBuffer%( buffer.BBCanvas,bmpfile$ ):"bbSaveBuffer"
@@ -68,7 +68,7 @@ CopyRect( source_x%,source_y%,width%,height%,dest_x%,dest_y%,src_buffer.BBCanvas
 ;rendering
 Origin( x%,y% ):"bbOrigin"
 Viewport( x%,y%,width%,height% ):"bbViewport"
-Color( red%,green%,blue% ):"bbColor"
+Color( red%,green%,blue%,alpha%=255 ):"bbColor"
 GetColor( x%,y% ):"bbGetColor"
 ColorRed%():"bbColorRed"
 ColorGreen%():"bbColorGreen"
@@ -140,3 +140,7 @@ Write( string$ ):"bbWrite"
 Print( string$="" ):"bbPrint"
 Input$( prompt$="" ):"bbInput"
 Locate( x%,y% ):"bbLocate"
+
+BufferWidth%( buffer.BBCanvas ):"bbBufferWidth"
+BufferHeight%( buffer.BBCanvas ):"bbBufferHeight"
+CopyRectStretch( source_x%,source_y%,source_w%,source_h%,dest_x%,dest_y%,dest_w%,dest_h%,src_buffer.BBCanvas=0,dest_buffer.BBCanvas=0 ):"bbCopyRectStretch"

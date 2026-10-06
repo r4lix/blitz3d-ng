@@ -28,6 +28,7 @@ public:
 	llvm::TargetMachine *targetMachine;
 
 	llvm::BasicBlock *breakBlock;
+	llvm::BasicBlock *continueBlock=0;
 
 	llvm::Value *CallIntrinsic( const std::string &symbol,llvm::Type *typ,int n,... );
 	llvm::Value *CastToObjPtr( llvm::Value *v );

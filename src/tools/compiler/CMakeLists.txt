@@ -66,6 +66,7 @@ set(TREE_SOURCES
   tree/expr/cast.cpp tree/expr/cast.h
   tree/expr/expr_seq.cpp tree/expr/expr_seq.h
   tree/expr/first.cpp tree/expr/first.h
+  tree/expr/funcptr.cpp tree/expr/funcptr.h
   tree/expr/float_const.cpp tree/expr/float_const.h
   tree/expr/int_const.cpp tree/expr/int_const.h
   tree/expr/last.cpp tree/expr/last.h

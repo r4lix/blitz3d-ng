@@ -30,9 +30,9 @@ public:
 	void clearCollisions();
 	void addCollision( int src_type,int dest_type,int method,int response );
 
-	void update( float elapsed );
+	void update( float elapsed,float phys_dt=0 );
 	void capture();
-	void render( float tween );
+	void render( float tween,Camera *only=0 );
 
 	bool checkLOS( Object *src,Object *dest );
 	bool hitTest( const Line &line,float radius,Object *obj,const Transform &tf,int method,Collision *curr_coll  );

@@ -4,6 +4,7 @@
 #include "node.h"
 
 struct ExitNode : public StmtNode{
+	bool isContinue=false;
 	std::string sem_brk;
 	void semant( Environ *e );
 	void translate( Codegen *g );

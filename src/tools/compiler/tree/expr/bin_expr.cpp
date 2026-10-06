@@ -8,7 +8,7 @@ ExprNode *BinExprNode::semant( Environ *e ){
 	lhs=lhs->semant(e);lhs=lhs->castTo( Type::int_type,e );
 	rhs=rhs->semant(e);rhs=rhs->castTo( Type::int_type,e );
 	ConstNode *lc=lhs->constNode(),*rc=rhs->constNode();
-	if( lc && rc ){
+	if( lc && rc && op!=LOR && op!=LAND ){
 		ExprNode *expr;
 		switch( op ){
 		case AND:expr=d_new IntConstNode( lc->intValue() & rc->intValue() );break;
@@ -42,6 +42,27 @@ TNode *BinExprNode::translate( Codegen *g ){
 
 #ifdef USE_LLVM
 llvm::Value *BinExprNode::translate2( Codegen_LLVM *g ){
+	if( op==LOR || op==LAND ){
+		// short-circuit logical operators (Blitz3D-TSS): result is 0 or 1
+		auto &B=*g->builder;
+		auto *func=B.GetInsertBlock()->getParent();
+		auto *l=lhs->translate2( g );
+		auto *lc=B.CreateICmpNE( l,llvm::ConstantInt::get( l->getType(),0 ) );
+		auto *first=B.GetInsertBlock();
+		auto *rhsBlk=llvm::BasicBlock::Create( *g->context,"lrhs",func );
+		auto *endBlk=llvm::BasicBlock::Create( *g->context,"lend",func );
+		if( op==LOR ) B.CreateCondBr( lc,endBlk,rhsBlk ); else B.CreateCondBr( lc,rhsBlk,endBlk );
+		B.SetInsertPoint( rhsBlk );
+		auto *r=rhs->translate2( g );
+		auto *rc=B.CreateICmpNE( r,llvm::ConstantInt::get( r->getType(),0 ) );
+		auto *last=B.GetInsertBlock();
+		B.CreateBr( endBlk );
+		B.SetInsertPoint( endBlk );
+		auto *phi=B.CreatePHI( B.getInt1Ty(),2 );
+		phi->addIncoming( B.getInt1( op==LOR ),first );
+		phi->addIncoming( rc,last );
+		return B.CreateIntCast( phi,Type::int_type->llvmType( g->context.get() ),false );
+	}
 	std::vector<llvm::Value*> ops;
 	ops.push_back( lhs->translate2( g ) );
 	ops.push_back( rhs->translate2( g ) );
@@ -65,6 +86,8 @@ json BinExprNode::toJSON( Environ *e ){
 	switch( op ){
 	case AND:tree["op"]="AND";break;
 	case OR: tree["op"]="OR";break;
+	case LOR:tree["op"]="LOR";break;
+	case LAND:tree["op"]="LAND";break;
 	case XOR:tree["op"]="XOR";break;
 	case SHL:tree["op"]="SHL";break;
 	case SHR:tree["op"]="SHR";break;

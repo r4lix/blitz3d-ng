@@ -181,6 +181,8 @@ bb_int_t BBCALL _bbObjEachNext2( BBObj **var );
 bb_int_t BBCALL _bbObjCompare( BBObj *o1,BBObj *o2 );
 BBStr *	 BBCALL _bbObjToStr( BBObj *obj );
 bb_int_t		 BBCALL _bbObjToHandle( BBObj *obj );
+bb_int_t		 BBCALL _bbFuncPtr( void *fn );
+void *bbFuncPtrResolve( bb_int_t id );
 BBObj *	 BBCALL _bbObjFromHandle( bb_int_t handle,BBObjType *type );
 void	 BBCALL _bbNullObjEx();
 

@@ -56,7 +56,7 @@ bb_int_t BBCALL bbGraphicsHeight(  );
 bb_int_t BBCALL bbGraphicsDepth(  );
 
 //buffer management
-void BBCALL bbSetBuffer( BBCanvas *buffer );
+void BBCALL bbSetBuffer( BBCanvas *buffer,BBCanvas *depth );
 BBCanvas * BBCALL bbGraphicsBuffer(  );
 bb_int_t BBCALL bbLoadBuffer( BBCanvas *buffer,BBStr *bmpfile );
 bb_int_t BBCALL bbSaveBuffer( BBCanvas *buffer,BBStr *bmpfile );
@@ -76,7 +76,7 @@ void BBCALL bbCopyRect( bb_int_t source_x,bb_int_t source_y,bb_int_t width,bb_in
 //rendering
 void BBCALL bbOrigin( bb_int_t x,bb_int_t y );
 void BBCALL bbViewport( bb_int_t x,bb_int_t y,bb_int_t width,bb_int_t height );
-void BBCALL bbColor( bb_int_t red,bb_int_t green,bb_int_t blue );
+void BBCALL bbColor( bb_int_t red,bb_int_t green,bb_int_t blue,bb_int_t alpha );
 void BBCALL bbGetColor( bb_int_t x,bb_int_t y );
 bb_int_t BBCALL bbColorRed(  );
 bb_int_t BBCALL bbColorGreen(  );
@@ -145,6 +145,9 @@ void BBCALL bbWrite( BBStr *string );
 void BBCALL bbPrint( BBStr *string );
 BBStr * BBCALL bbInput( BBStr *prompt );
 void BBCALL bbLocate( bb_int_t x,bb_int_t y );
+bb_int_t BBCALL bbBufferWidth( BBCanvas *buffer );
+bb_int_t BBCALL bbBufferHeight( BBCanvas *buffer );
+void BBCALL bbCopyRectStretch( bb_int_t source_x,bb_int_t source_y,bb_int_t source_w,bb_int_t source_h,bb_int_t dest_x,bb_int_t dest_y,bb_int_t dest_w,bb_int_t dest_h,BBCanvas *src_buffer,BBCanvas *dest_buffer );
 
 #ifdef __cplusplus
 }

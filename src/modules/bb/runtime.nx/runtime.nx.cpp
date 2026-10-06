@@ -3,6 +3,7 @@
 #include "runtime.nx.h"
 
 #include <switch.h>
+#include <sys/iosupport.h>
 
 #include <bb/input/input.h>
 #include <bb/graphics/graphics.h>
@@ -29,7 +30,9 @@ public:
 	void afterCreate(){
 		// consoleInit( 0 );
 
-		romfsInit();
+		// already mounted by the stub when running as an installed title
+		// (the trailing colon matters: without it GetDeviceOpTab returns the default device)
+		if( !GetDeviceOpTab( "romfs:" ) ) romfsInit();
 
 		// BBContextDriver::change( "gl" );
 		// bbDefaultGraphics();

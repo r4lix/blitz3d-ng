@@ -463,7 +463,7 @@ void World::collide( Object *src ){
 }
 */
 
-void World::update( float elapsed ){
+void World::update( float elapsed,float phys_dt ){
 
 	stats3d[0]=0;
 
@@ -485,11 +485,41 @@ void World::update( float elapsed ){
 	for( it=_enabled.begin();it!=_enabled.end();++it ){
 		Object *o=*it;
 
+		Object::Phys &p=o->phys;
+		bool body=p.on && phys_dt>0;
+		if( body ){
+			p.start=o->getWorldPosition();
+			if( !p.frozen ){
+				if( !p.kinematic ) p.lin.y-=9.81f*p.gravity*phys_dt;
+				float damp=1-p.lin_damp*phys_dt;
+				if( damp<0 ) damp=0;
+				p.lin.x*=damp;p.lin.z*=damp;if( !p.kinematic ) p.lin.y*=damp;
+				o->setWorldPosition( p.start+p.lin*phys_dt );
+			}
+		}
+
 		o->beginUpdate( elapsed );
 
 		if( o->getCollisionType() ) collide( o );
 
 		o->endUpdate();
+
+		if( body && !p.frozen ){
+			Vector got=(o->getWorldPosition()-p.start)/phys_dt;
+			if( !p.kinematic ){
+				Vector want=p.lin;
+				float in=-(want.x*(got.x-want.x)+want.y*(got.y-want.y)+want.z*(got.z-want.z));
+				Vector d=got-want;float dl=d.length();
+				p.impulse=dl>0?p.mass*dl:0;(void)in;
+				// bounce off whatever stopped us, drop what was absorbed
+				if( p.restitution>0 && dl>0.5f ){
+					Vector n=d/dl;float vn=want.dot(n);
+					p.lin=got;if( vn<0 ) p.lin=p.lin-n*(vn*(1+p.restitution))*0.5f;
+				}else p.lin=got;
+				if( d.y>0.01f ){ float f=1-p.friction*phys_dt*12;if( f<0 ) f=0;p.lin.x*=f;p.lin.z*=f; }
+				if( got.length()>0.05f || dl>0.05f ) p.awake=60; else if( p.awake>0 ) --p.awake;
+			}else p.lin=got;
+		}
 	}
 
 	for( int k=0;k<1000;++k ){
@@ -537,7 +567,7 @@ void World::capture(){
 	}
 }
 
-void World::render( float tween ){
+void World::render( float tween,Camera *only ){
 	//set render tweens, and build ordered and unordered model lists...
 	ord_mods.clear();
 	unord_mods.clear();
@@ -556,7 +586,7 @@ void World::render( float tween ){
 		if( !o->beginRender(tween) ) continue;
 
 		if( Light *t=o->getLight() ) _lights.push_back(t->getRep());
-		else if( Camera *t=o->getCamera() ) cam_que.push(t);
+		else if( Camera *t=o->getCamera() ){ if( !only ) cam_que.push(t); }
 		else if( Mirror *t=o->getMirror() ) _mirrors.push_back(t);
 		else if( Listener *t=o->getListener() ) _listeners.push_back(t);
 		else if( Model *t=o->getModel() ){
@@ -565,6 +595,7 @@ void World::render( float tween ){
 		}
 	}
 
+	if( only ){ only->beginRender( tween );cam_que.push( only ); }
 	for( ;ord_que.size();ord_que.pop() ) ord_mods.push_back( ord_que.top() );
 
 //	_bbDebugLog( "RenderWorld" );
